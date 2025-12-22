@@ -337,7 +337,7 @@ struct GradientProgressBar: View {
         workout: {
             let workout = Workout(name: "Push Day", orderIndex: 0)
 
-            let bench = Exercise(
+            _ = Exercise(
                 name: "Bench Press",
                 targetWeight: 60.0,
                 targetRepsMin: 6,
@@ -348,7 +348,7 @@ struct GradientProgressBar: View {
                 workout: workout
             )
 
-            let shoulder = Exercise(
+            _ = Exercise(
                 name: "Shoulder Press",
                 targetWeight: 40.0,
                 targetRepsMin: 8,

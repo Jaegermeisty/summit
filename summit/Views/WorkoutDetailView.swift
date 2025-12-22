@@ -157,8 +157,8 @@ struct ExerciseRowView: View {
     NavigationStack {
         WorkoutDetailView(workout: {
             let workout = Workout(name: "Push Day", orderIndex: 0)
-            
-            let bench = Exercise(
+
+            _ = Exercise(
                 name: "Bench Press",
                 targetWeight: 60.0,
                 targetRepsMin: 6,
@@ -168,8 +168,8 @@ struct ExerciseRowView: View {
                 orderIndex: 0,
                 workout: workout
             )
-            
-            let shoulder = Exercise(
+
+            _ = Exercise(
                 name: "Shoulder Press",
                 targetWeight: 40.0,
                 targetRepsMin: 8,
@@ -178,7 +178,7 @@ struct ExerciseRowView: View {
                 orderIndex: 1,
                 workout: workout
             )
-            
+
             return workout
         }())
     }

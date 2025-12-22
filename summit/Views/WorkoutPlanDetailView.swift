@@ -161,11 +161,11 @@ struct WorkoutRowView: View {
                 name: "Push Pull Legs",
                 planDescription: "Classic 3-day split"
             )
-            
-            let pushDay = Workout(name: "Push Day", orderIndex: 0, workoutPlan: plan)
-            let pullDay = Workout(name: "Pull Day", orderIndex: 1, workoutPlan: plan)
-            let legDay = Workout(name: "Leg Day", orderIndex: 2, workoutPlan: plan)
-            
+
+            _ = Workout(name: "Push Day", orderIndex: 0, workoutPlan: plan)
+            _ = Workout(name: "Pull Day", orderIndex: 1, workoutPlan: plan)
+            _ = Workout(name: "Leg Day", orderIndex: 2, workoutPlan: plan)
+
             return plan
         }())
     }
