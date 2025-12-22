@@ -115,12 +115,17 @@ struct ActiveWorkoutSessionView: View {
     private func initializeExerciseStates() {
         exerciseStates = sortedExercises.map { exercise in
             let lastLog = DataHelpers.lastSession(for: exercise.name, in: modelContext)
-            let suggestedWeight = lastLog?.weight ?? exercise.targetWeight
+            let suggestedWeight = lastLog?.weights.first ?? exercise.targetWeight
+
+            // Initialize sets with suggested weight from last session or template
+            let sets: [SetData] = (0..<exercise.numberOfSets).map { index in
+                let weight = (index < (lastLog?.weights.count ?? 0)) ? lastLog!.weights[index] : suggestedWeight
+                return SetData(weight: weight, reps: nil)
+            }
 
             return ExerciseState(
                 exercise: exercise,
-                weight: suggestedWeight,
-                sets: Array(repeating: SetData(reps: nil), count: exercise.numberOfSets)
+                sets: sets
             )
         }
     }
@@ -137,12 +142,13 @@ struct ActiveWorkoutSessionView: View {
 
         // Create exercise logs
         for (index, state) in exerciseStates.enumerated() {
+            let completedWeights = state.sets.compactMap { $0.weight }
             let completedReps = state.sets.compactMap { $0.reps }
-            guard !completedReps.isEmpty else { continue }
+            guard !completedReps.isEmpty, !completedWeights.isEmpty else { continue }
 
             let log = ExerciseLog(
                 exerciseName: state.exercise.name,
-                weight: state.weight,
+                weights: completedWeights,
                 reps: completedReps,
                 orderIndex: index,
                 session: session
@@ -163,15 +169,15 @@ struct ActiveWorkoutSessionView: View {
 
 struct ExerciseState {
     let exercise: Exercise
-    var weight: Double
     var sets: [SetData]
 
     var isCompleted: Bool {
-        sets.allSatisfy { $0.reps != nil }
+        sets.allSatisfy { $0.reps != nil && $0.weight != nil }
     }
 }
 
 struct SetData {
+    var weight: Double?
     var reps: Int?
 }
 
@@ -215,7 +221,8 @@ struct ExerciseLogCard: View {
                             .font(.caption2)
                             .foregroundStyle(.orange)
 
-                        Text("Last: \(Int(lastLog.weight))kg × \(lastLog.reps.map(String.init).joined(separator: ", ")) reps")
+                        let setsInfo = zip(lastLog.weights, lastLog.reps).map { "\(Int($0))kg×\($1)" }.joined(separator: ", ")
+                        Text("Last: \(setsInfo)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -234,42 +241,34 @@ struct ExerciseLogCard: View {
                 }
             }
 
-            // Weight input
-            HStack(spacing: 12) {
-                Text("Weight (kg)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                TextField("Weight", value: $state.weight, format: .number)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
-                    .multilineTextAlignment(.center)
-            }
-
-            // Sets
+            // Sets with weight per set
             VStack(spacing: 12) {
                 ForEach(state.sets.indices, id: \.self) { index in
-                    HStack(spacing: 12) {
+                    HStack(spacing: 8) {
                         Text("Set \(index + 1)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                            .frame(width: 60, alignment: .leading)
+                            .frame(width: 50, alignment: .leading)
 
-                        TextField("Reps", value: $state.sets[index].reps, format: .number)
+                        TextField("kg", value: $state.sets[index].weight, format: .number)
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                            .multilineTextAlignment(.center)
+
+                        Text("×")
+                            .foregroundStyle(.secondary)
+
+                        TextField("reps", value: $state.sets[index].reps, format: .number)
                             .keyboardType(.numberPad)
                             .textFieldStyle(.roundedBorder)
-                            .frame(width: 70)
+                            .frame(width: 60)
                             .multilineTextAlignment(.center)
                             .focused($focusedSetIndex, equals: index)
 
-                        Text("reps")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
                         Spacer()
 
-                        if let reps = state.sets[index].reps {
+                        if state.sets[index].weight != nil && state.sets[index].reps != nil {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
                                 .font(.caption)
@@ -280,7 +279,8 @@ struct ExerciseLogCard: View {
                 // Add/Remove set buttons
                 HStack(spacing: 16) {
                     Button {
-                        state.sets.append(SetData(reps: nil))
+                        let lastWeight = state.sets.last?.weight ?? state.exercise.targetWeight
+                        state.sets.append(SetData(weight: lastWeight, reps: nil))
                     } label: {
                         Label("Add Set", systemImage: "plus.circle")
                             .font(.caption)
@@ -308,7 +308,7 @@ struct ExerciseLogCard: View {
     }
 }
 
-// MARK: - Gradient Progress Bar
+// MARK: - Progress Bar
 
 struct GradientProgressBar: View {
     let progress: Double
@@ -317,19 +317,16 @@ struct GradientProgressBar: View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
                 // Background
-                Rectangle()
+                RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray.opacity(0.2))
+                    .padding(.horizontal, 16)
 
-                // Progress with gradient
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [.red, .orange, .green]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: geometry.size.width * progress)
+                // Progress
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.orange)
+                    .frame(width: max(0, (geometry.size.width - 32) * progress))
+                    .padding(.horizontal, 16)
+                    .animation(.easeInOut(duration: 0.3), value: progress)
             }
         }
     }

@@ -94,6 +94,14 @@ struct ContentView: View {
                         }
                     )
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            planToDelete = active
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete Plan", systemImage: "trash")
+                        }
+                    }
                 } header: {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Active Plan")
@@ -116,6 +124,20 @@ struct ContentView: View {
                         NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
                             PlanRowView(plan: plan)
                         }
+                        .contextMenu {
+                            Button {
+                                setActivePlan(plan)
+                            } label: {
+                                Label("Set as Active", systemImage: "star.fill")
+                            }
+
+                            Button(role: .destructive) {
+                                planToDelete = plan
+                                showingDeleteConfirmation = true
+                            } label: {
+                                Label("Delete Plan", systemImage: "trash")
+                            }
+                        }
                     }
                     .onDelete(perform: deleteOtherPlans)
                 } header: {
@@ -124,7 +146,7 @@ struct ContentView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } footer: {
-                    Text("Swipe left to delete")
+                    Text("Swipe left to delete • Long press to set active")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -146,6 +168,22 @@ struct ContentView: View {
             try modelContext.save()
         } catch {
             print("Error deleting plan: \(error)")
+        }
+    }
+
+    private func setActivePlan(_ plan: WorkoutPlan) {
+        // Deactivate all plans
+        for p in workoutPlans {
+            p.isActive = false
+        }
+
+        // Activate the selected plan
+        plan.isActive = true
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error setting active plan: \(error)")
         }
     }
 }
