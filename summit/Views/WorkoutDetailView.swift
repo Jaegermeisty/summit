@@ -11,30 +11,67 @@ import SwiftData
 struct WorkoutDetailView: View {
     @Environment(\.modelContext) private var modelContext
     let workout: Workout
-    
+
+    @State private var showingCreateExercise = false
+    @State private var editingExercise: Exercise?
+
     var sortedExercises: [Exercise] {
         workout.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
     }
-    
+
     var body: some View {
         List {
+            // Workout notes section if they exist
+            if let notes = workout.notes, !notes.isEmpty {
+                Section {
+                    Text(notes)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Notes")
+                        .textCase(nil)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 if sortedExercises.isEmpty {
                     ContentUnavailableView {
                         Label("No Exercises", systemImage: "dumbbell")
                     } description: {
                         Text("Add exercises to this workout to get started")
+                    } actions: {
+                        Button {
+                            showingCreateExercise = true
+                        } label: {
+                            Text("Add Exercise")
+                                .fontWeight(.semibold)
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                 } else {
                     ForEach(sortedExercises) { exercise in
-                        ExerciseRowView(exercise: exercise)
+                        Button {
+                            editingExercise = exercise
+                        } label: {
+                            ExerciseRowView(exercise: exercise)
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .onDelete(perform: deleteExercises)
                 }
             } header: {
                 Text("Exercises")
                     .textCase(nil)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            } footer: {
+                if !sortedExercises.isEmpty {
+                    Text("Tap to edit • Swipe left to delete")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .navigationTitle(workout.name)
@@ -42,11 +79,36 @@ struct WorkoutDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    // TODO: Add exercise
+                    showingCreateExercise = true
                 } label: {
                     Image(systemName: "plus")
                 }
             }
+        }
+        .sheet(isPresented: $showingCreateExercise) {
+            CreateExerciseView(workout: workout)
+        }
+        .sheet(item: $editingExercise) { exercise in
+            EditExerciseView(exercise: exercise)
+        }
+    }
+
+    private func deleteExercises(at offsets: IndexSet) {
+        for index in offsets {
+            let exercise = sortedExercises[index]
+            modelContext.delete(exercise)
+        }
+
+        // Reorder remaining exercises
+        let remaining = sortedExercises.enumerated().filter { !offsets.contains($0.offset) }
+        for (newIndex, (_, exercise)) in remaining.enumerated() {
+            exercise.orderIndex = newIndex
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error deleting exercise: \(error)")
         }
     }
 }

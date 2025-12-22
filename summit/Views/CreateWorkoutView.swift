@@ -13,9 +13,10 @@ struct CreateWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     
     let workoutPlan: WorkoutPlan
-    
+
     @State private var workoutName: String = ""
-    
+    @State private var workoutNotes: String = ""
+
     var body: some View {
         NavigationStack {
             Form {
@@ -32,7 +33,22 @@ struct CreateWorkoutView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                
+
+                Section {
+                    TextField("Notes (optional)", text: $workoutNotes, axis: .vertical)
+                        .lineLimit(2...4)
+                        .font(.body)
+                } header: {
+                    Text("Notes")
+                        .textCase(nil)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } footer: {
+                    Text("Add notes about focus areas, intensity, or special instructions")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section {
                     HStack {
                         Text("Position in Plan")
@@ -71,15 +87,17 @@ struct CreateWorkoutView: View {
     
     private func createWorkout() {
         let trimmedName = workoutName.trimmingCharacters(in: .whitespaces)
-        
+        let trimmedNotes = workoutNotes.trimmingCharacters(in: .whitespaces)
+
         let newWorkout = Workout(
             name: trimmedName,
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
             orderIndex: workoutPlan.workouts.count,
             workoutPlan: workoutPlan
         )
-        
+
         modelContext.insert(newWorkout)
-        
+
         do {
             try modelContext.save()
             dismiss()
