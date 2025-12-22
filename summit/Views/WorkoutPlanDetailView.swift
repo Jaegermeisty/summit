@@ -11,9 +11,11 @@ import SwiftData
 struct WorkoutPlanDetailView: View {
     @Environment(\.modelContext) private var modelContext
     let plan: WorkoutPlan
-    
+
     @State private var showingCreateWorkout = false
-    
+    @State private var workoutToDelete: Workout?
+    @State private var showingDeleteConfirmation = false
+
     var sortedWorkouts: [Workout] {
         plan.workouts.sorted(by: { $0.orderIndex < $1.orderIndex })
     }
@@ -78,20 +80,33 @@ struct WorkoutPlanDetailView: View {
         .sheet(isPresented: $showingCreateWorkout) {
             CreateWorkoutView(workoutPlan: plan)
         }
+        .alert("Delete Workout", isPresented: $showingDeleteConfirmation, presenting: workoutToDelete) { workout in
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteWorkout(workout)
+            }
+        } message: { workout in
+            Text("Are you sure you want to delete '\(workout.name)'? All exercises in this workout will be permanently deleted. This cannot be undone.")
+        }
     }
-    
+
     private func deleteWorkouts(at offsets: IndexSet) {
         for index in offsets {
             let workout = sortedWorkouts[index]
-            modelContext.delete(workout)
+            workoutToDelete = workout
+            showingDeleteConfirmation = true
         }
-        
+    }
+
+    private func deleteWorkout(_ workout: Workout) {
+        modelContext.delete(workout)
+
         // Reorder remaining workouts
-        let remaining = sortedWorkouts.enumerated().filter { !offsets.contains($0.offset) }
-        for (newIndex, (_, workout)) in remaining.enumerated() {
+        let remaining = sortedWorkouts.filter { $0.id != workout.id }
+        for (newIndex, workout) in remaining.enumerated() {
             workout.orderIndex = newIndex
         }
-        
+
         do {
             try modelContext.save()
         } catch {
