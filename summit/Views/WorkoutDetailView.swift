@@ -26,13 +26,14 @@ struct WorkoutDetailView: View {
                 Section {
                     Text(notes)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } header: {
                     Text("Notes")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
+                .listRowBackground(Color.summitCard)
             }
 
             Section {
@@ -49,7 +50,9 @@ struct WorkoutDetailView: View {
                                 .fontWeight(.semibold)
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(Color.summitOrange)
                     }
+                    .listRowBackground(Color.clear)
                 } else {
                     ForEach(sortedExercises) { exercise in
                         Button {
@@ -58,6 +61,7 @@ struct WorkoutDetailView: View {
                             ExerciseRowView(exercise: exercise)
                         }
                         .buttonStyle(.plain)
+                        .listRowBackground(Color.summitCard)
                     }
                     .onDelete(perform: deleteExercises)
                 }
@@ -65,23 +69,28 @@ struct WorkoutDetailView: View {
                 Text("Exercises")
                     .textCase(nil)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.summitTextSecondary)
             } footer: {
                 if !sortedExercises.isEmpty {
                     Text("Tap to edit • Swipe left to delete")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.summitBackground)
         .navigationTitle(workout.name)
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(Color.summitBackground, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showingCreateExercise = true
                 } label: {
                     Image(systemName: "plus")
+                        .foregroundStyle(Color.summitOrange)
                 }
             }
         }
@@ -115,35 +124,36 @@ struct WorkoutDetailView: View {
 
 struct ExerciseRowView: View {
     let exercise: Exercise
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(exercise.name)
                 .font(.headline)
-            
+                .foregroundStyle(Color.summitText)
+
             HStack(spacing: 16) {
                 Label("\(Int(exercise.targetWeight))kg", systemImage: "scalemass")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                
+                    .foregroundStyle(Color.summitTextSecondary)
+
                 Label("\(exercise.targetRepsMin)-\(exercise.targetRepsMax) reps", systemImage: "repeat")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                
+                    .foregroundStyle(Color.summitTextSecondary)
+
                 Label("\(exercise.numberOfSets) sets", systemImage: "square.stack.3d.up")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.summitTextSecondary)
             }
-            
+
             if let notes = exercise.notes, !notes.isEmpty {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "note.text")
                         .font(.caption)
-                        .foregroundStyle(.orange)
-                    
+                        .foregroundStyle(Color.summitOrange)
+
                     Text(notes)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 2)

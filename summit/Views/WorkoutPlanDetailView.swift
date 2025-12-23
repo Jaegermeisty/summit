@@ -26,10 +26,11 @@ struct WorkoutPlanDetailView: View {
                 Section {
                     Text(description)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
+                .listRowBackground(Color.summitCard)
             }
-            
+
             Section {
                 if sortedWorkouts.isEmpty {
                     ContentUnavailableView {
@@ -44,12 +45,15 @@ struct WorkoutPlanDetailView: View {
                                 .fontWeight(.semibold)
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(Color.summitOrange)
                     }
+                    .listRowBackground(Color.clear)
                 } else {
                     ForEach(sortedWorkouts) { workout in
                         NavigationLink(destination: WorkoutDetailView(workout: workout)) {
                             WorkoutRowView(workout: workout)
                         }
+                        .listRowBackground(Color.summitCard)
                     }
                     .onDelete(perform: deleteWorkouts)
                 }
@@ -57,23 +61,28 @@ struct WorkoutPlanDetailView: View {
                 Text("Workouts")
                     .textCase(nil)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.summitTextSecondary)
             } footer: {
                 if !sortedWorkouts.isEmpty {
                     Text("Swipe left on a workout to delete it")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.summitBackground)
         .navigationTitle(plan.name)
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(Color.summitBackground, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showingCreateWorkout = true
                 } label: {
                     Image(systemName: "plus")
+                        .foregroundStyle(Color.summitOrange)
                 }
             }
         }
@@ -117,7 +126,7 @@ struct WorkoutPlanDetailView: View {
 
 struct WorkoutRowView: View {
     let workout: Workout
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 6) {
@@ -130,24 +139,25 @@ struct WorkoutRowView: View {
                         .padding(.vertical, 3)
                         .background(
                             Capsule()
-                                .fill(Color.orange.opacity(0.8))
+                                .fill(Color.summitOrange)
                         )
-                    
+
                     Text(workout.name)
                         .font(.body)
                         .fontWeight(.medium)
+                        .foregroundStyle(Color.summitText)
                 }
-                
+
                 HStack(spacing: 4) {
                     Image(systemName: "dumbbell")
                         .font(.caption2)
-                    
+
                     Text("\(workout.exercises.count) exercise\(workout.exercises.count == 1 ? "" : "s")")
                         .font(.caption)
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.summitTextSecondary)
             }
-            
+
             Spacer()
         }
         .padding(.vertical, 4)

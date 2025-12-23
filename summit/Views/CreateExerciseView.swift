@@ -46,12 +46,13 @@ struct CreateExerciseView: View {
                     Text("Name")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("e.g., Bench Press, Squat, Deadlift, Pull-ups")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     TextField("Weight", text: $targetWeight)
@@ -62,19 +63,20 @@ struct CreateExerciseView: View {
                     Text("Target Weight (kg)")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("Starting weight for this exercise")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Min")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.summitTextSecondary)
                             TextField("6", text: $targetRepsMin)
                                 .keyboardType(.numberPad)
                                 .font(.body)
@@ -82,13 +84,13 @@ struct CreateExerciseView: View {
                         }
 
                         Text("—")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.summitTextSecondary)
                             .padding(.top, 20)
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Max")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.summitTextSecondary)
                             TextField("8", text: $targetRepsMax)
                                 .keyboardType(.numberPad)
                                 .font(.body)
@@ -99,12 +101,13 @@ struct CreateExerciseView: View {
                     Text("Target Reps")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("Target rep range per set (e.g., 6-8, 8-12)")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     TextField("Number of Sets", text: $numberOfSets)
@@ -115,12 +118,13 @@ struct CreateExerciseView: View {
                     Text("Sets")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("How many sets per workout")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     TextField("Notes (optional)", text: $exerciseNotes, axis: .vertical)
@@ -131,12 +135,13 @@ struct CreateExerciseView: View {
                     Text("Notes")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("e.g., Pause at bottom, rest-pause on last set, tempo")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     VStack(spacing: 12) {
@@ -151,6 +156,7 @@ struct CreateExerciseView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(Color.summitOrange)
                         .disabled(!isFormValid)
 
                         Button {
@@ -164,24 +170,31 @@ struct CreateExerciseView: View {
                             }
                         }
                         .buttonStyle(.bordered)
+                        .tint(Color.summitOrange)
                         .disabled(!isFormValid)
                     }
                     .listRowBackground(Color.clear)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.summitBackground)
             .navigationTitle("New Exercise")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color.summitBackground, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundStyle(Color.summitTextSecondary)
                 }
 
                 ToolbarItem(placement: .keyboard) {
                     Button("Done") {
                         focusedField = nil
                     }
+                    .foregroundStyle(Color.summitOrange)
                 }
             }
         }

@@ -27,12 +27,13 @@ struct CreateWorkoutView: View {
                     Text("Name")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("e.g., Push Day, Pull Day, Leg Day, Upper Body, Day 1")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     TextField("Notes (optional)", text: $workoutNotes, axis: .vertical)
@@ -42,44 +43,52 @@ struct CreateWorkoutView: View {
                     Text("Notes")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("Add notes about focus areas, intensity, or special instructions")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     HStack {
                         Text("Position in Plan")
-                            .foregroundStyle(.secondary)
-                        
+                            .foregroundStyle(Color.summitTextSecondary)
+
                         Spacer()
-                        
+
                         Text("Day \(workoutPlan.workouts.count + 1)")
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.summitText)
                     }
                 } footer: {
                     Text("This workout will be added as the next day in your plan rotation")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.summitBackground)
             .navigationTitle("New Workout")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color.summitBackground, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundStyle(Color.summitTextSecondary)
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
                         createWorkout()
                     }
                     .disabled(workoutName.trimmingCharacters(in: .whitespaces).isEmpty)
                     .fontWeight(.semibold)
+                    .foregroundStyle(workoutName.trimmingCharacters(in: .whitespaces).isEmpty ? Color.summitTextTertiary : Color.summitOrange)
                 }
             }
         }

@@ -56,8 +56,9 @@ struct EditExerciseView: View {
                     Text("Name")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     TextField("Weight", text: $targetWeight)
@@ -68,15 +69,16 @@ struct EditExerciseView: View {
                     Text("Target Weight (kg)")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Min")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.summitTextSecondary)
                             TextField("6", text: $targetRepsMin)
                                 .keyboardType(.numberPad)
                                 .font(.body)
@@ -84,13 +86,13 @@ struct EditExerciseView: View {
                         }
 
                         Text("—")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.summitTextSecondary)
                             .padding(.top, 20)
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Max")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.summitTextSecondary)
                             TextField("8", text: $targetRepsMax)
                                 .keyboardType(.numberPad)
                                 .font(.body)
@@ -101,8 +103,9 @@ struct EditExerciseView: View {
                     Text("Target Reps")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     TextField("Number of Sets", text: $numberOfSets)
@@ -113,8 +116,9 @@ struct EditExerciseView: View {
                     Text("Sets")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
+                .listRowBackground(Color.summitCard)
 
                 Section {
                     TextField("Notes (optional)", text: $exerciseNotes, axis: .vertical)
@@ -125,16 +129,22 @@ struct EditExerciseView: View {
                     Text("Notes")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
+                .listRowBackground(Color.summitCard)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.summitBackground)
             .navigationTitle("Edit Exercise")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color.summitBackground, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundStyle(Color.summitTextSecondary)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -143,12 +153,14 @@ struct EditExerciseView: View {
                     }
                     .disabled(!isFormValid)
                     .fontWeight(.semibold)
+                    .foregroundStyle(isFormValid ? Color.summitOrange : Color.summitTextTertiary)
                 }
 
                 ToolbarItem(placement: .keyboard) {
                     Button("Done") {
                         focusedField = nil
                     }
+                    .foregroundStyle(Color.summitOrange)
                 }
             }
         }
