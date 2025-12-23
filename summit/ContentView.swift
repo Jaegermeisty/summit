@@ -40,9 +40,8 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Text("Summit")
-                        .font(.title2)
+                        .font(.headline)
                         .italic()
-                        .fontWeight(.semibold)
                         .foregroundStyle(Color.summitOrange)
                 }
 

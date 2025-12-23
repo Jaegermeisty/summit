@@ -75,15 +75,14 @@ struct WorkoutPlanDetailView: View {
         .scrollContentBackground(.hidden)
         .background(Color.summitBackground)
         .navigationTitle(plan.name)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(Color.summitBackground, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Text("Summit")
-                    .font(.title3)
+                    .font(.headline)
                     .italic()
-                    .fontWeight(.semibold)
                     .foregroundStyle(Color.summitOrange)
             }
 
