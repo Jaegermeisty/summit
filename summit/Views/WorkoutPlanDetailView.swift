@@ -35,8 +35,10 @@ struct WorkoutPlanDetailView: View {
                 if sortedWorkouts.isEmpty {
                     ContentUnavailableView {
                         Label("No Workouts", systemImage: "figure.strengthtraining.traditional")
+                            .foregroundStyle(Color.summitText)
                     } description: {
                         Text("Add your first workout to get started")
+                            .foregroundStyle(Color.summitTextSecondary)
                     } actions: {
                         Button {
                             showingCreateWorkout = true

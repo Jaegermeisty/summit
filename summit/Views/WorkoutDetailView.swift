@@ -40,8 +40,10 @@ struct WorkoutDetailView: View {
                 if sortedExercises.isEmpty {
                     ContentUnavailableView {
                         Label("No Exercises", systemImage: "dumbbell")
+                            .foregroundStyle(Color.summitText)
                     } description: {
                         Text("Add exercises to this workout to get started")
+                            .foregroundStyle(Color.summitTextSecondary)
                     } actions: {
                         Button {
                             showingCreateExercise = true
