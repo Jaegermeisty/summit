@@ -42,15 +42,16 @@ struct ActiveWorkoutSessionView: View {
                             Text(workout.name)
                                 .font(.title2)
                                 .fontWeight(.bold)
+                                .foregroundStyle(.summitText)
 
                             Text(plan.name)
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.summitTextSecondary)
 
                             if let notes = workout.notes, !notes.isEmpty {
                                 Text(notes)
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.summitTextTertiary)
                                     .padding(.top, 4)
                             }
                         }
@@ -78,12 +79,13 @@ struct ActiveWorkoutSessionView: View {
                                 Spacer()
                                 Label("Complete Workout", systemImage: "checkmark.circle.fill")
                                     .fontWeight(.semibold)
+                                    .foregroundStyle(.white)
                                 Spacer()
                             }
                             .padding(.vertical, 16)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.green)
+                        .background(Color.summitSuccess)
+                        .cornerRadius(10)
                         .padding(.horizontal)
                         .padding(.vertical, 24)
                     }
@@ -91,11 +93,15 @@ struct ActiveWorkoutSessionView: View {
             }
             .navigationTitle("Active Workout")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+            .background(Color.summitBackground)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundStyle(.summitTextSecondary)
                 }
             }
             .alert("Complete Workout?", isPresented: $showingCompleteConfirmation) {
@@ -196,35 +202,36 @@ struct ExerciseLogCard: View {
                 HStack {
                     Text(state.exercise.name)
                         .font(.headline)
+                        .foregroundStyle(.summitText)
 
                     Spacer()
 
                     if state.isCompleted {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.summitSuccess)
                     }
                 }
 
                 HStack(spacing: 12) {
                     Label("Target: \(state.exercise.targetRepsMin)-\(state.exercise.targetRepsMax) reps", systemImage: "target")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.summitTextSecondary)
 
                     Label("\(state.exercise.numberOfSets) sets", systemImage: "square.stack.3d.up")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.summitTextSecondary)
                 }
 
                 if let lastLog = lastSession {
                     HStack(spacing: 8) {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.summitOrange)
 
                         let setsInfo = zip(lastLog.weights, lastLog.reps).map { "\(Int($0))kg×\($1)" }.joined(separator: ", ")
                         Text("Last: \(setsInfo)")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.summitTextTertiary)
                     }
                 }
 
@@ -232,11 +239,11 @@ struct ExerciseLogCard: View {
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "note.text")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.summitOrange)
 
                         Text(notes)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.summitTextSecondary)
                     }
                 }
             }
@@ -247,7 +254,8 @@ struct ExerciseLogCard: View {
                     HStack(spacing: 8) {
                         Text("Set \(index + 1)")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.summitTextSecondary)
                             .frame(width: 50, alignment: .leading)
 
                         TextField("kg", value: $state.sets[index].weight, format: .number)
@@ -257,7 +265,7 @@ struct ExerciseLogCard: View {
                             .multilineTextAlignment(.center)
 
                         Text("×")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.summitTextTertiary)
 
                         TextField("reps", value: $state.sets[index].reps, format: .number)
                             .keyboardType(.numberPad)
@@ -270,7 +278,7 @@ struct ExerciseLogCard: View {
 
                         if state.sets[index].weight != nil && state.sets[index].reps != nil {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.summitSuccess)
                                 .font(.caption)
                         }
                     }
@@ -284,7 +292,7 @@ struct ExerciseLogCard: View {
                     } label: {
                         Label("Add Set", systemImage: "plus.circle")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.summitOrange)
                     }
 
                     if state.sets.count > 1 {
@@ -293,17 +301,17 @@ struct ExerciseLogCard: View {
                         } label: {
                             Label("Remove Set", systemImage: "minus.circle")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.summitTextSecondary)
                         }
                     }
                 }
                 .padding(.top, 4)
             }
         }
-        .padding(16)
+        .padding(18)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(uiColor: .secondarySystemBackground))
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.summitCard)
         )
     }
 }
