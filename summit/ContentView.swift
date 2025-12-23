@@ -43,7 +43,7 @@ struct ContentView: View {
                         showingCreatePlan = true
                     } label: {
                         Image(systemName: "plus")
-                            .foregroundStyle(.summitOrange)
+                            .foregroundStyle(Color.summitOrange)
                     }
                 }
             }
@@ -111,7 +111,7 @@ struct ContentView: View {
                         Text("Active Plan")
                             .textCase(nil)
                             .font(.headline)
-                            .foregroundStyle(.summitText)
+                            .foregroundStyle(Color.summitText)
 
                         Rectangle()
                             .fill(Color.summitOrange)
@@ -149,11 +149,11 @@ struct ContentView: View {
                     Text("Other Plans")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.summitTextSecondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("Swipe left to delete • Long press to set active")
                         .font(.caption)
-                        .foregroundStyle(.summitTextTertiary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
             }
         }
@@ -203,7 +203,7 @@ struct PlanRowView: View {
             HStack {
                 Text(plan.name)
                     .font(.headline)
-                    .foregroundStyle(.summitText)
+                    .foregroundStyle(Color.summitText)
 
                 if plan.isActive {
                     Spacer()
@@ -224,18 +224,18 @@ struct PlanRowView: View {
             if let description = plan.planDescription {
                 Text(description)
                     .font(.subheadline)
-                    .foregroundStyle(.summitTextSecondary)
+                    .foregroundStyle(Color.summitTextSecondary)
                     .lineLimit(2)
             }
 
             HStack(spacing: 12) {
                 Label("\(plan.workouts.count)", systemImage: "list.bullet")
                     .font(.caption)
-                    .foregroundStyle(.summitTextTertiary)
+                    .foregroundStyle(Color.summitTextTertiary)
 
                 Text(plan.workouts.count == 1 ? "workout" : "workouts")
                     .font(.caption)
-                    .foregroundStyle(.summitTextTertiary)
+                    .foregroundStyle(Color.summitTextTertiary)
             }
         }
         .padding(.vertical, 4)
@@ -255,32 +255,32 @@ struct ActivePlanCardView: View {
                     Text(plan.name)
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundStyle(.summitText)
+                        .foregroundStyle(Color.summitText)
 
                     Spacer()
 
                     NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
                         Image(systemName: "chevron.right")
                             .font(.body)
-                            .foregroundStyle(.summitTextSecondary)
+                            .foregroundStyle(Color.summitTextSecondary)
                     }
                 }
 
                 if let description = plan.planDescription {
                     Text(description)
                         .font(.subheadline)
-                        .foregroundStyle(.summitTextSecondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                         .lineLimit(2)
                 }
 
                 HStack(spacing: 12) {
                     Label("\(plan.workouts.count)", systemImage: "list.bullet")
                         .font(.caption)
-                        .foregroundStyle(.summitTextTertiary)
+                        .foregroundStyle(Color.summitTextTertiary)
 
                     Text(plan.workouts.count == 1 ? "workout" : "workouts")
                         .font(.caption)
-                        .foregroundStyle(.summitTextTertiary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
             }
 
@@ -290,18 +290,18 @@ struct ActivePlanCardView: View {
                     Text("Next Workout")
                         .font(.caption)
                         .fontWeight(.semibold)
-                        .foregroundStyle(.summitTextTertiary)
+                        .foregroundStyle(Color.summitTextTertiary)
                         .textCase(.uppercase)
 
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(workout.name)
                                 .font(.headline)
-                                .foregroundStyle(.summitText)
+                                .foregroundStyle(Color.summitText)
 
                             Text("\(workout.exercises.count) exercise\(workout.exercises.count == 1 ? "" : "s")")
                                 .font(.caption)
-                                .foregroundStyle(.summitTextSecondary)
+                                .foregroundStyle(Color.summitTextSecondary)
                         }
 
                         Spacer()
@@ -332,7 +332,7 @@ struct ActivePlanCardView: View {
             } else {
                 Text("Add workouts to this plan to get started")
                     .font(.subheadline)
-                    .foregroundStyle(.summitTextSecondary)
+                    .foregroundStyle(Color.summitTextSecondary)
                     .padding(.vertical, 8)
             }
         }
