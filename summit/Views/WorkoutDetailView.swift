@@ -87,6 +87,14 @@ struct WorkoutDetailView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(Color.summitBackground, for: .navigationBar)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Text("Summit")
+                    .font(.title3)
+                    .italic()
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.summitOrange)
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showingCreateExercise = true

@@ -147,6 +147,14 @@ struct EditExerciseView: View {
                     .foregroundStyle(Color.summitTextSecondary)
                 }
 
+                ToolbarItem(placement: .principal) {
+                    Text("Summit")
+                        .font(.title3)
+                        .italic()
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.summitOrange)
+                }
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         saveChanges()

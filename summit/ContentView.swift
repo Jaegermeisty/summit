@@ -34,10 +34,18 @@ struct ContentView: View {
                     mainContentView
                 }
             }
-            .navigationTitle("Summit")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(Color.summitBackground, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Text("Summit")
+                        .font(.title2)
+                        .italic()
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.summitOrange)
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingCreatePlan = true
@@ -70,8 +78,10 @@ struct ContentView: View {
     private var emptyStateView: some View {
         ContentUnavailableView {
             Label("No Workout Plans", systemImage: "figure.strengthtraining.traditional")
+                .foregroundStyle(Color.summitText)
         } description: {
             Text("Create your first workout plan to start tracking your progress")
+                .foregroundStyle(Color.summitTextSecondary)
         } actions: {
             Button {
                 showingCreatePlan = true
@@ -80,6 +90,7 @@ struct ContentView: View {
                     .fontWeight(.semibold)
             }
             .buttonStyle(.borderedProminent)
+            .tint(Color.summitOrange)
             .controlSize(.large)
         }
     }
