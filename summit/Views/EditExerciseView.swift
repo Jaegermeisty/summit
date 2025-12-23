@@ -149,9 +149,10 @@ struct EditExerciseView: View {
 
                 ToolbarItem(placement: .principal) {
                     Text("Summit")
-                        .font(.headline)
+                        .font(.system(size: 18, weight: .bold))
                         .italic()
                         .foregroundStyle(Color.summitOrange)
+                        .fixedSize()
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
