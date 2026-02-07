@@ -132,7 +132,7 @@ extension ModelContainer {
             
             let benchLog = ExerciseLog(
                 exerciseName: "Bench Press",
-                weight: 60.0,
+                weights: [60.0, 60.0, 57.5],
                 reps: [8, 7, 6],
                 orderIndex: 0,
                 session: session

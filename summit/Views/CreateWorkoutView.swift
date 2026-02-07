@@ -13,9 +13,10 @@ struct CreateWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     
     let workoutPlan: WorkoutPlan
-    
+
     @State private var workoutName: String = ""
-    
+    @State private var workoutNotes: String = ""
+
     var body: some View {
         NavigationStack {
             Form {
@@ -26,44 +27,68 @@ struct CreateWorkoutView: View {
                     Text("Name")
                         .textCase(nil)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextSecondary)
                 } footer: {
                     Text("e.g., Push Day, Pull Day, Leg Day, Upper Body, Day 1")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
-                
+                .listRowBackground(Color.summitCard)
+
+                Section {
+                    TextField("Notes (optional)", text: $workoutNotes, axis: .vertical)
+                        .lineLimit(2...4)
+                        .font(.body)
+                } header: {
+                    Text("Notes")
+                        .textCase(nil)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.summitTextSecondary)
+                } footer: {
+                    Text("Add notes about focus areas, intensity, or special instructions")
+                        .font(.caption)
+                        .foregroundStyle(Color.summitTextTertiary)
+                }
+                .listRowBackground(Color.summitCard)
+
                 Section {
                     HStack {
                         Text("Position in Plan")
-                            .foregroundStyle(.secondary)
-                        
+                            .foregroundStyle(Color.summitTextSecondary)
+
                         Spacer()
-                        
+
                         Text("Day \(workoutPlan.workouts.count + 1)")
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.summitText)
                     }
                 } footer: {
                     Text("This workout will be added as the next day in your plan rotation")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.summitTextTertiary)
                 }
+                .listRowBackground(Color.summitCard)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.summitBackground)
             .navigationTitle("New Workout")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color.summitBackground, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundStyle(Color.summitTextSecondary)
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
                         createWorkout()
                     }
                     .disabled(workoutName.trimmingCharacters(in: .whitespaces).isEmpty)
                     .fontWeight(.semibold)
+                    .foregroundStyle(workoutName.trimmingCharacters(in: .whitespaces).isEmpty ? Color.summitTextTertiary : Color.summitOrange)
                 }
             }
         }
@@ -71,15 +96,17 @@ struct CreateWorkoutView: View {
     
     private func createWorkout() {
         let trimmedName = workoutName.trimmingCharacters(in: .whitespaces)
-        
+        let trimmedNotes = workoutNotes.trimmingCharacters(in: .whitespaces)
+
         let newWorkout = Workout(
             name: trimmedName,
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
             orderIndex: workoutPlan.workouts.count,
             workoutPlan: workoutPlan
         )
-        
+
         modelContext.insert(newWorkout)
-        
+
         do {
             try modelContext.save()
             dismiss()

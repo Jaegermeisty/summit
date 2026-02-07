@@ -12,22 +12,25 @@ import SwiftData
 final class Workout {
     var id: UUID
     var name: String
+    var notes: String? // Optional notes about the workout
     var orderIndex: Int // For ordering workouts within a plan (e.g., Day 1, Day 2)
-    
+
     var workoutPlan: WorkoutPlan?
-    
+
     @Relationship(deleteRule: .cascade, inverse: \Exercise.workout)
     var exercises: [Exercise]
-    
+
     init(
         id: UUID = UUID(),
         name: String,
+        notes: String? = nil,
         orderIndex: Int = 0,
         workoutPlan: WorkoutPlan? = nil,
         exercises: [Exercise] = []
     ) {
         self.id = id
         self.name = name
+        self.notes = notes
         self.orderIndex = orderIndex
         self.workoutPlan = workoutPlan
         self.exercises = exercises
