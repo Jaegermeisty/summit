@@ -18,6 +18,7 @@ struct WorkoutSessionView: View {
     @Query private var logs: [ExerciseLog]
     @State private var lastLogsByDefinition: [String: ExerciseLog] = [:]
     @State private var templatesByOrder: [Int: Exercise] = [:]
+    @State private var showCompletionToast = false
 
     init(session: WorkoutSession, workout: Workout) {
         _session = Bindable(wrappedValue: session)
@@ -86,6 +87,13 @@ struct WorkoutSessionView: View {
         .navigationTitle("Workout")
         .navigationBarTitleDisplayMode(.inline)
         .scrollDismissesKeyboard(.immediately)
+        .overlay(alignment: .top) {
+            if showCompletionToast {
+                CompletionToastView()
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 8)
+            }
+        }
         .onAppear {
             loadLastLogs()
             loadTemplates()
@@ -98,7 +106,12 @@ struct WorkoutSessionView: View {
 
         do {
             try modelContext.save()
-            dismiss()
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                showCompletionToast = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                dismiss()
+            }
         } catch {
             print("Error completing session: \(error)")
         }
@@ -243,6 +256,26 @@ struct ExerciseLogRowView: View {
             return String(Int(value))
         }
         return String(format: "%.1f", value)
+    }
+}
+
+struct CompletionToastView: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Text("Session completed")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitText)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.summitCardElevated)
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+        )
     }
 }
 

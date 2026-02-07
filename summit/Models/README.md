@@ -22,19 +22,17 @@ The app should make it effortless to train from the **active plan**:
 
 - SwiftData models for plans, workouts, exercises, sessions, logs, and body weight.
 - Shared and preview model containers with sample data.
-- UI for:
-  - Plan list + empty state
-  - Create plan
-  - Plan detail (list/delete workouts)
-  - Create workout
-  - Workout detail (read-only exercise list)
+- Canonical exercise catalog with case-insensitive matching and suggestions.
+- Auto-fill target weight from last known template/log (when creating exercises).
+- Active plan card on Home with “Start Workout”.
+- Session flow with per-set logging and last performance per workout/day.
+- History list (last 5 completed sessions) with edit capability.
+- Session completion toast on finish.
 
 ## Planned / In-Scope Next Steps
 
 These are **intended features**, not yet implemented:
 
-- Active plan selection and “Start Next Workout” on the home screen
-- Workout session UI for logging sets (reps/weight)
 - Exercise history + progress graphs
 - Plan-level analytics and plan comparisons
 - Paywall:
@@ -51,17 +49,18 @@ Foundation
 - [x] Plan list + create plan UI
 - [x] Plan detail + create workout UI
 - [x] Add exercise creation UI
-- [ ] Add exercise editing UI
-- [ ] Active plan selection (single active plan)
-- [ ] Home screen “Start Next Workout”
+- [x] Add exercise editing UI
+- [x] Active plan selection (single active plan)
+- [x] Home screen “Start Next Workout”
 
 Logging
 - [x] Start/continue workout session flow
 - [x] Per-set logging UI (weight + reps)
 - [x] Show last performance for the **same workout/day** (exercise template) to guide weight selection
 - [x] Persist session progress during app background/close
-- [ ] Save completed session to history (Pro only)
+- [ ] Gate history saving behind Pro (currently saves for all users)
 - [x] History list of recent workouts with edit capability (without changing original date)
+- [x] Session completed toast
 
 Analytics (Pro)
 - [ ] Exercise history graph (per exercise)
@@ -71,6 +70,15 @@ Analytics (Pro)
 
 Monetization
 - [ ] One-time purchase paywall gating history + analytics
+
+## Next Up (Prioritized)
+
+1. Add paywall gating for history saving + analytics (one-time purchase).
+2. Build Analytics screen:
+   - Exercise history graph (per exercise)
+   - Plan-level progress graph
+   - Plan comparison view
+3. Add exercise search + selector in Analytics for global history.
 
 ## Model Files
 
