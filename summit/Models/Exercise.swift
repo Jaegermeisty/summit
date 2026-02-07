@@ -11,7 +11,8 @@ import SwiftData
 @Model
 final class Exercise {
     var id: UUID
-    var name: String
+    var definition: ExerciseDefinition
+    var createdAt: Date
     var targetWeight: Double // Suggested starting weight in kg
     var targetRepsMin: Int // Minimum target reps (e.g., 6 in "6-8 reps")
     var targetRepsMax: Int // Maximum target reps (e.g., 8 in "6-8 reps")
@@ -23,7 +24,8 @@ final class Exercise {
     
     init(
         id: UUID = UUID(),
-        name: String,
+        definition: ExerciseDefinition,
+        createdAt: Date = Date(),
         targetWeight: Double,
         targetRepsMin: Int,
         targetRepsMax: Int,
@@ -33,7 +35,8 @@ final class Exercise {
         workout: Workout? = nil
     ) {
         self.id = id
-        self.name = name
+        self.definition = definition
+        self.createdAt = createdAt
         self.targetWeight = targetWeight
         self.targetRepsMin = targetRepsMin
         self.targetRepsMax = targetRepsMax
@@ -41,5 +44,13 @@ final class Exercise {
         self.notes = notes
         self.orderIndex = orderIndex
         self.workout = workout
+    }
+
+    var name: String {
+        definition.name
+    }
+
+    var normalizedName: String {
+        definition.normalizedName
     }
 }

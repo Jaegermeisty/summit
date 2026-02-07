@@ -13,6 +13,7 @@ struct EditExerciseView: View {
     @Environment(\.dismiss) private var dismiss
 
     let exercise: Exercise
+    @Query(sort: \ExerciseDefinition.name, order: .forward) private var definitions: [ExerciseDefinition]
 
     @State private var exerciseName: String
     @State private var targetWeight: String
@@ -185,7 +186,17 @@ struct EditExerciseView: View {
             return
         }
 
-        exercise.name = trimmedName
+        let normalized = ExerciseDefinition.normalize(trimmedName)
+        let definition: ExerciseDefinition
+        if let existing = definitions.first(where: { $0.normalizedName == normalized }) {
+            definition = existing
+        } else {
+            let newDefinition = ExerciseDefinition(name: trimmedName)
+            modelContext.insert(newDefinition)
+            definition = newDefinition
+        }
+
+        exercise.definition = definition
         exercise.targetWeight = weight
         exercise.targetRepsMin = repsMin
         exercise.targetRepsMax = repsMax
@@ -204,8 +215,9 @@ struct EditExerciseView: View {
 #Preview {
     EditExerciseView(exercise: {
         let workout = Workout(name: "Push Day", orderIndex: 0)
+        let definition = ExerciseDefinition(name: "Bench Press")
         let exercise = Exercise(
-            name: "Bench Press",
+            definition: definition,
             targetWeight: 60.0,
             targetRepsMin: 6,
             targetRepsMax: 8,

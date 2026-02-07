@@ -16,9 +16,10 @@ struct DataHelpers {
         for exerciseName: String,
         in context: ModelContext
     ) -> ExerciseLog? {
+        let normalizedName = ExerciseDefinition.normalize(exerciseName)
         let descriptor = FetchDescriptor<ExerciseLog>(
             predicate: #Predicate<ExerciseLog> { log in
-                log.exerciseName == exerciseName
+                log.definition.normalizedName == normalizedName
             },
             sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .reverse)]
         )
@@ -37,9 +38,10 @@ struct DataHelpers {
         for exerciseName: String,
         in context: ModelContext
     ) -> [ExerciseLog] {
+        let normalizedName = ExerciseDefinition.normalize(exerciseName)
         let descriptor = FetchDescriptor<ExerciseLog>(
             predicate: #Predicate<ExerciseLog> { log in
-                log.exerciseName == exerciseName
+                log.definition.normalizedName == normalizedName
             },
             sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .forward)]
         )
@@ -54,12 +56,13 @@ struct DataHelpers {
     
     /// Get all unique exercise names that have been logged
     static func allExerciseNames(in context: ModelContext) -> [String] {
-        let descriptor = FetchDescriptor<ExerciseLog>()
+        let descriptor = FetchDescriptor<ExerciseDefinition>(
+            sortBy: [SortDescriptor(\ExerciseDefinition.name, order: .forward)]
+        )
         
         do {
-            let logs = try context.fetch(descriptor)
-            let uniqueNames = Set(logs.map { $0.exerciseName })
-            return Array(uniqueNames).sorted()
+            let definitions = try context.fetch(descriptor)
+            return definitions.map { $0.name }
         } catch {
             print("Error fetching exercise names: \(error)")
             return []
@@ -99,31 +102,262 @@ struct DataHelpers {
         let descriptor = FetchDescriptor<WorkoutSession>(
             sortBy: [SortDescriptor(\WorkoutSession.date, order: .reverse)]
         )
-        
+
         do {
             let allSessions = try context.fetch(descriptor)
-            
+
             // Filter to sessions from this plan
-            let planSessions = allSessions.filter { $0.workoutPlanId == plan.id }
-            
+            let planSessions = allSessions.filter { $0.workoutPlanId == plan.id && $0.isCompleted }
+
             guard let lastSession = planSessions.first else {
                 // No sessions yet, return first workout
-                return plan.workouts.sorted(by: { $0.orderIndex < $1.orderIndex }).first
+                return workouts(for: plan, in: context).first
             }
-            
+
             // Find the next workout in the rotation
-            let sortedWorkouts = plan.workouts.sorted(by: { $0.orderIndex < $1.orderIndex })
-            
+            let sortedWorkouts = workouts(for: plan, in: context)
+
             if let lastWorkoutIndex = sortedWorkouts.firstIndex(where: { $0.id == lastSession.workoutTemplateId }) {
                 let nextIndex = (lastWorkoutIndex + 1) % sortedWorkouts.count
                 return sortedWorkouts[nextIndex]
             }
-            
+
             // Fallback to first workout
             return sortedWorkouts.first
         } catch {
             print("Error finding next workout: \(error)")
-            return plan.workouts.sorted(by: { $0.orderIndex < $1.orderIndex }).first
+            return workouts(for: plan, in: context).first
         }
+    }
+
+    /// Fetch the most recent completed session for a workout template
+    static func lastCompletedSession(
+        for workout: Workout,
+        excluding sessionId: UUID? = nil,
+        in context: ModelContext
+    ) -> WorkoutSession? {
+        let workoutId = workout.id
+        let descriptor: FetchDescriptor<WorkoutSession>
+        if let sessionId {
+            descriptor = FetchDescriptor<WorkoutSession>(
+                predicate: #Predicate<WorkoutSession> { session in
+                    session.workoutTemplateId == workoutId &&
+                    session.isCompleted == true &&
+                    session.id != sessionId
+                },
+                sortBy: [SortDescriptor(\WorkoutSession.date, order: .reverse)]
+            )
+        } else {
+            descriptor = FetchDescriptor<WorkoutSession>(
+                predicate: #Predicate<WorkoutSession> { session in
+                    session.workoutTemplateId == workoutId && session.isCompleted == true
+                },
+                sortBy: [SortDescriptor(\WorkoutSession.date, order: .reverse)]
+            )
+        }
+
+        do {
+            return try context.fetch(descriptor).first
+        } catch {
+            print("Error fetching last completed session: \(error)")
+            return nil
+        }
+    }
+
+    /// Fetch an active (in-progress) session for a workout template
+    static func activeSession(
+        for workout: Workout,
+        in context: ModelContext
+    ) -> WorkoutSession? {
+        let workoutId = workout.id
+        let descriptor = FetchDescriptor<WorkoutSession>(
+            predicate: #Predicate<WorkoutSession> { session in
+                session.workoutTemplateId == workoutId && session.isCompleted == false
+            },
+            sortBy: [SortDescriptor(\WorkoutSession.date, order: .reverse)]
+        )
+
+        do {
+            return try context.fetch(descriptor).first
+        } catch {
+            print("Error fetching active session: \(error)")
+            return nil
+        }
+    }
+
+    /// Create or resume a session for the workout template
+    static func startSession(
+        for workout: Workout,
+        in context: ModelContext
+    ) -> WorkoutSession {
+        if let existing = activeSession(for: workout, in: context) {
+            return existing
+        }
+
+        let plan = workout.workoutPlan
+        let session = WorkoutSession(
+            workoutTemplateId: workout.id,
+            workoutTemplateName: workout.name,
+            workoutPlanId: plan?.id ?? UUID(),
+            workoutPlanName: plan?.name ?? "Unknown Plan"
+        )
+        context.insert(session)
+
+        let sortedExercises = exercises(for: workout, in: context)
+        for (index, exercise) in sortedExercises.enumerated() {
+            let reps = Array(repeating: 0, count: exercise.numberOfSets)
+            let log = ExerciseLog(
+                definition: exercise.definition,
+                weight: exercise.targetWeight,
+                reps: reps,
+                orderIndex: index,
+                session: session
+            )
+            context.insert(log)
+        }
+
+        do {
+            try context.save()
+        } catch {
+            print("Error starting session: \(error)")
+        }
+
+        return session
+    }
+
+    /// Fetch logs for a specific session
+    static func logs(
+        for session: WorkoutSession,
+        in context: ModelContext
+    ) -> [ExerciseLog] {
+        let sessionId = session.id
+        let descriptor = FetchDescriptor<ExerciseLog>(
+            predicate: #Predicate<ExerciseLog> { log in
+                log.session?.id == sessionId
+            },
+            sortBy: [SortDescriptor(\ExerciseLog.orderIndex, order: .forward)]
+        )
+
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            print("Error fetching session logs: \(error)")
+            return []
+        }
+    }
+
+    /// Fetch exercises for a workout template
+    static func exercises(
+        for workout: Workout,
+        in context: ModelContext
+    ) -> [Exercise] {
+        let workoutId = workout.id
+        let descriptor = FetchDescriptor<Exercise>(
+            predicate: #Predicate<Exercise> { exercise in
+                exercise.workout?.id == workoutId
+            },
+            sortBy: [SortDescriptor(\Exercise.orderIndex, order: .forward)]
+        )
+
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            print("Error fetching exercises: \(error)")
+            return []
+        }
+    }
+
+    /// Fetch workouts for a plan
+    static func workouts(
+        for plan: WorkoutPlan,
+        in context: ModelContext
+    ) -> [Workout] {
+        let planId = plan.id
+        let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate<Workout> { workout in
+                workout.workoutPlan?.id == planId
+            },
+            sortBy: [SortDescriptor(\Workout.orderIndex, order: .forward)]
+        )
+
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            print("Error fetching workouts: \(error)")
+            return []
+        }
+    }
+
+    /// Fetch a workout by id
+    static func workout(
+        with id: UUID,
+        in context: ModelContext
+    ) -> Workout? {
+        let workoutId = id
+        let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate<Workout> { workout in
+                workout.id == workoutId
+            }
+        )
+
+        do {
+            return try context.fetch(descriptor).first
+        } catch {
+            print("Error fetching workout: \(error)")
+            return nil
+        }
+    }
+
+    /// Get the most recently logged weight for a canonical exercise
+    static func lastLoggedWeight(
+        for definition: ExerciseDefinition,
+        in context: ModelContext
+    ) -> Double? {
+        let normalizedName = definition.normalizedName
+        let descriptor = FetchDescriptor<ExerciseLog>(
+            predicate: #Predicate<ExerciseLog> { log in
+                log.definition.normalizedName == normalizedName
+            },
+            sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .reverse)]
+        )
+
+        do {
+            return try context.fetch(descriptor).first?.weight
+        } catch {
+            print("Error fetching last logged weight: \(error)")
+            return nil
+        }
+    }
+
+    /// Get the most recently created exercise template for a canonical exercise
+    static func lastExerciseTemplate(
+        for definition: ExerciseDefinition,
+        in context: ModelContext
+    ) -> Exercise? {
+        let normalizedName = definition.normalizedName
+        let descriptor = FetchDescriptor<Exercise>(
+            predicate: #Predicate<Exercise> { exercise in
+                exercise.definition.normalizedName == normalizedName
+            },
+            sortBy: [SortDescriptor(\Exercise.createdAt, order: .reverse)]
+        )
+
+        do {
+            return try context.fetch(descriptor).first
+        } catch {
+            print("Error fetching last exercise template: \(error)")
+            return nil
+        }
+    }
+
+    /// Suggested starting weight based on last logged data (if any) or last template
+    static func suggestedTargetWeight(
+        for definition: ExerciseDefinition,
+        in context: ModelContext
+    ) -> Double? {
+        if let loggedWeight = lastLoggedWeight(for: definition, in: context) {
+            return loggedWeight
+        }
+        return lastExerciseTemplate(for: definition, in: context)?.targetWeight
     }
 }

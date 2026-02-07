@@ -10,16 +10,25 @@ import SwiftData
 
 struct WorkoutPlanDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    let plan: WorkoutPlan
+    @Bindable var plan: WorkoutPlan
+    @Query private var workouts: [Workout]
 
     @State private var showingCreateWorkout = false
     @State private var workoutToDelete: Workout?
     @State private var showingDeleteConfirmation = false
 
-    var sortedWorkouts: [Workout] {
-        plan.workouts.sorted(by: { $0.orderIndex < $1.orderIndex })
+    init(plan: WorkoutPlan) {
+        _plan = Bindable(wrappedValue: plan)
+        let planId = plan.id
+        _workouts = Query(
+            filter: #Predicate<Workout> { workout in
+                workout.workoutPlan?.id == planId
+            },
+            sort: \Workout.orderIndex,
+            order: .forward
+        )
     }
-    
+
     var body: some View {
         List {
             if let description = plan.planDescription {
@@ -32,7 +41,7 @@ struct WorkoutPlanDetailView: View {
             }
 
             Section {
-                if sortedWorkouts.isEmpty {
+                if workouts.isEmpty {
                     ContentUnavailableView {
                         Label("No Workouts", systemImage: "figure.strengthtraining.traditional")
                             .foregroundStyle(Color.summitText)
@@ -51,7 +60,7 @@ struct WorkoutPlanDetailView: View {
                     }
                     .listRowBackground(Color.clear)
                 } else {
-                    ForEach(sortedWorkouts) { workout in
+                    ForEach(workouts) { workout in
                         NavigationLink(destination: WorkoutDetailView(workout: workout)) {
                             WorkoutRowView(workout: workout)
                         }
@@ -65,7 +74,7 @@ struct WorkoutPlanDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(Color.summitTextSecondary)
             } footer: {
-                if !sortedWorkouts.isEmpty {
+                if !workouts.isEmpty {
                     Text("Swipe left on a workout to delete it")
                         .font(.caption)
                         .foregroundStyle(Color.summitTextTertiary)
@@ -110,18 +119,15 @@ struct WorkoutPlanDetailView: View {
     }
 
     private func deleteWorkouts(at offsets: IndexSet) {
-        for index in offsets {
-            let workout = sortedWorkouts[index]
-            workoutToDelete = workout
-            showingDeleteConfirmation = true
-        }
+        guard let index = offsets.first else { return }
+        workoutToDelete = workouts[index]
+        showingDeleteConfirmation = true
     }
 
     private func deleteWorkout(_ workout: Workout) {
         modelContext.delete(workout)
 
-        // Reorder remaining workouts
-        let remaining = sortedWorkouts.filter { $0.id != workout.id }
+        let remaining = workouts.filter { $0.id != workout.id }
         for (newIndex, workout) in remaining.enumerated() {
             workout.orderIndex = newIndex
         }
@@ -135,7 +141,18 @@ struct WorkoutPlanDetailView: View {
 }
 
 struct WorkoutRowView: View {
-    let workout: Workout
+    @Bindable var workout: Workout
+    @Query private var exercises: [Exercise]
+
+    init(workout: Workout) {
+        _workout = Bindable(wrappedValue: workout)
+        let workoutId = workout.id
+        _exercises = Query(
+            filter: #Predicate<Exercise> { exercise in
+                exercise.workout?.id == workoutId
+            }
+        )
+    }
 
     var body: some View {
         HStack {
@@ -162,7 +179,7 @@ struct WorkoutRowView: View {
                     Image(systemName: "dumbbell")
                         .font(.caption2)
 
-                    Text("\(workout.exercises.count) exercise\(workout.exercises.count == 1 ? "" : "s")")
+                    Text("\(exercises.count) exercise\(exercises.count == 1 ? "" : "s")")
                         .font(.caption)
                 }
                 .foregroundStyle(Color.summitTextSecondary)
@@ -182,9 +199,13 @@ struct WorkoutRowView: View {
                 planDescription: "Classic 3-day split"
             )
 
-            _ = Workout(name: "Push Day", orderIndex: 0, workoutPlan: plan)
-            _ = Workout(name: "Pull Day", orderIndex: 1, workoutPlan: plan)
-            _ = Workout(name: "Leg Day", orderIndex: 2, workoutPlan: plan)
+            let pushDay = Workout(name: "Push Day", orderIndex: 0, workoutPlan: plan)
+            let pullDay = Workout(name: "Pull Day", orderIndex: 1, workoutPlan: plan)
+            let legDay = Workout(name: "Leg Day", orderIndex: 2, workoutPlan: plan)
+
+            _ = pushDay
+            _ = pullDay
+            _ = legDay
 
             return plan
         }())

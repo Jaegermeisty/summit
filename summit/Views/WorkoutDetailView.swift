@@ -10,18 +10,27 @@ import SwiftData
 
 struct WorkoutDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    let workout: Workout
+    @Bindable var workout: Workout
+    @Query private var exercises: [Exercise]
 
     @State private var showingCreateExercise = false
     @State private var editingExercise: Exercise?
+    @State private var selectedSession: WorkoutSession?
 
-    var sortedExercises: [Exercise] {
-        workout.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+    init(workout: Workout) {
+        _workout = Bindable(wrappedValue: workout)
+        let workoutId = workout.id
+        _exercises = Query(
+            filter: #Predicate<Exercise> { exercise in
+                exercise.workout?.id == workoutId
+            },
+            sort: \Exercise.orderIndex,
+            order: .forward
+        )
     }
 
     var body: some View {
         List {
-            // Workout notes section if they exist
             if let notes = workout.notes, !notes.isEmpty {
                 Section {
                     Text(notes)
@@ -37,7 +46,17 @@ struct WorkoutDetailView: View {
             }
 
             Section {
-                if sortedExercises.isEmpty {
+                Button {
+                    selectedSession = DataHelpers.startSession(for: workout, in: modelContext)
+                } label: {
+                    Text("Start Workout")
+                        .fontWeight(.semibold)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+            Section {
+                if exercises.isEmpty {
                     ContentUnavailableView {
                         Label("No Exercises", systemImage: "dumbbell")
                             .foregroundStyle(Color.summitText)
@@ -56,7 +75,7 @@ struct WorkoutDetailView: View {
                     }
                     .listRowBackground(Color.clear)
                 } else {
-                    ForEach(sortedExercises) { exercise in
+                    ForEach(exercises) { exercise in
                         Button {
                             editingExercise = exercise
                         } label: {
@@ -73,7 +92,7 @@ struct WorkoutDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(Color.summitTextSecondary)
             } footer: {
-                if !sortedExercises.isEmpty {
+                if !exercises.isEmpty {
                     Text("Tap to edit • Swipe left to delete")
                         .font(.caption)
                         .foregroundStyle(Color.summitTextTertiary)
@@ -110,16 +129,18 @@ struct WorkoutDetailView: View {
         .sheet(item: $editingExercise) { exercise in
             EditExerciseView(exercise: exercise)
         }
+        .navigationDestination(item: $selectedSession) { session in
+            WorkoutSessionView(session: session, workout: workout)
+        }
     }
 
     private func deleteExercises(at offsets: IndexSet) {
         for index in offsets {
-            let exercise = sortedExercises[index]
+            let exercise = exercises[index]
             modelContext.delete(exercise)
         }
 
-        // Reorder remaining exercises
-        let remaining = sortedExercises.enumerated().filter { !offsets.contains($0.offset) }
+        let remaining = exercises.enumerated().filter { !offsets.contains($0.offset) }
         for (newIndex, (_, exercise)) in remaining.enumerated() {
             exercise.orderIndex = newIndex
         }
@@ -178,8 +199,11 @@ struct ExerciseRowView: View {
         WorkoutDetailView(workout: {
             let workout = Workout(name: "Push Day", orderIndex: 0)
 
-            _ = Exercise(
-                name: "Bench Press",
+            let benchDefinition = ExerciseDefinition(name: "Bench Press")
+            let shoulderDefinition = ExerciseDefinition(name: "Shoulder Press")
+
+            let bench = Exercise(
+                definition: benchDefinition,
                 targetWeight: 60.0,
                 targetRepsMin: 6,
                 targetRepsMax: 8,
@@ -189,8 +213,8 @@ struct ExerciseRowView: View {
                 workout: workout
             )
 
-            _ = Exercise(
-                name: "Shoulder Press",
+            let shoulder = Exercise(
+                definition: shoulderDefinition,
                 targetWeight: 40.0,
                 targetRepsMin: 8,
                 targetRepsMax: 10,
@@ -198,6 +222,9 @@ struct ExerciseRowView: View {
                 orderIndex: 1,
                 workout: workout
             )
+
+            _ = bench
+            _ = shoulder
 
             return workout
         }())

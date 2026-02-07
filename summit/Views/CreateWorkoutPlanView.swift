@@ -78,18 +78,11 @@ struct CreateWorkoutPlanView: View {
     private func createPlan() {
         let trimmedName = planName.trimmingCharacters(in: .whitespaces)
         let trimmedDescription = planDescription.trimmingCharacters(in: .whitespaces)
-
-        // Check if there are any existing plans
-        let descriptor = FetchDescriptor<WorkoutPlan>()
-        let existingPlans = (try? modelContext.fetch(descriptor)) ?? []
-
-        // First plan is active, subsequent plans are inactive
-        let isActive = existingPlans.isEmpty
-
+        let hasActivePlan = DataHelpers.activeWorkoutPlan(in: modelContext) != nil
         let newPlan = WorkoutPlan(
             name: trimmedName,
             planDescription: trimmedDescription.isEmpty ? nil : trimmedDescription,
-            isActive: isActive
+            isActive: !hasActivePlan
         )
 
         modelContext.insert(newPlan)

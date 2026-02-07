@@ -11,11 +11,22 @@ import SwiftData
 struct CreateWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    
+
     let workoutPlan: WorkoutPlan
+    @Query private var existingWorkouts: [Workout]
 
     @State private var workoutName: String = ""
     @State private var workoutNotes: String = ""
+
+    init(workoutPlan: WorkoutPlan) {
+        self.workoutPlan = workoutPlan
+        let planId = workoutPlan.id
+        _existingWorkouts = Query(
+            filter: #Predicate<Workout> { workout in
+                workout.workoutPlan?.id == planId
+            }
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -58,7 +69,7 @@ struct CreateWorkoutView: View {
 
                         Spacer()
 
-                        Text("Day \(workoutPlan.workouts.count + 1)")
+                        Text("Day \(existingWorkouts.count + 1)")
                             .foregroundStyle(Color.summitText)
                     }
                 } footer: {
@@ -93,7 +104,7 @@ struct CreateWorkoutView: View {
             }
         }
     }
-    
+
     private func createWorkout() {
         let trimmedName = workoutName.trimmingCharacters(in: .whitespaces)
         let trimmedNotes = workoutNotes.trimmingCharacters(in: .whitespaces)
@@ -101,7 +112,7 @@ struct CreateWorkoutView: View {
         let newWorkout = Workout(
             name: trimmedName,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
-            orderIndex: workoutPlan.workouts.count,
+            orderIndex: existingWorkouts.count,
             workoutPlan: workoutPlan
         )
 

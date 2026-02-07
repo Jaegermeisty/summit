@@ -1,8 +1,8 @@
 //
 //  CreateExerciseView.swift
-//  summit
+//  Summit
 //
-//  Created on 2025-12-22
+//  Created on 2026-02-07
 //
 
 import SwiftUI
@@ -11,170 +11,58 @@ import SwiftData
 struct CreateExerciseView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \ExerciseDefinition.name, order: .forward) private var definitions: [ExerciseDefinition]
+    @Query private var existingExercises: [Exercise]
 
     let workout: Workout
 
     @State private var exerciseName: String = ""
-    @State private var targetWeight: String = ""
-    @State private var targetRepsMin: String = ""
-    @State private var targetRepsMax: String = ""
-    @State private var numberOfSets: String = ""
-    @State private var exerciseNotes: String = ""
+    @State private var selectedDefinition: ExerciseDefinition?
+    @State private var targetWeight: Double = 0
+    @State private var targetRepsMin: Int = 6
+    @State private var targetRepsMax: Int = 8
+    @State private var numberOfSets: Int = 3
+    @State private var notes: String = ""
 
-    @FocusState private var focusedField: Field?
-
-    enum Field {
-        case name, weight, repsMin, repsMax, sets, notes
+    private var normalizedName: String {
+        ExerciseDefinition.normalize(exerciseName)
     }
 
-    private var isFormValid: Bool {
-        !exerciseName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        Double(targetWeight) != nil &&
-        Int(targetRepsMin) != nil &&
-        Int(targetRepsMax) != nil &&
-        Int(numberOfSets) != nil
+    private var suggestions: [ExerciseDefinition] {
+        let query = normalizedName
+        guard !query.isEmpty else { return [] }
+
+        let prefixMatches = definitions.filter { $0.normalizedName.hasPrefix(query) }
+        if !prefixMatches.isEmpty {
+            return Array(prefixMatches.prefix(6))
+        }
+
+        let containsMatches = definitions.filter { $0.normalizedName.contains(query) }
+        return Array(containsMatches.prefix(6))
+    }
+
+    private var canSave: Bool {
+        let trimmedName = exerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmedName.isEmpty && targetRepsMin > 0 && targetRepsMax >= targetRepsMin && numberOfSets > 0
+    }
+
+    init(workout: Workout) {
+        self.workout = workout
+        let workoutId = workout.id
+        _existingExercises = Query(
+            filter: #Predicate<Exercise> { exercise in
+                exercise.workout?.id == workoutId
+            }
+        )
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    TextField("Exercise Name", text: $exerciseName)
-                        .font(.body)
-                        .focused($focusedField, equals: .name)
-                } header: {
-                    Text("Name")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("e.g., Bench Press, Squat, Deadlift, Pull-ups")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
-                .listRowBackground(Color.summitCard)
-
-                Section {
-                    TextField("Weight", text: $targetWeight)
-                        .keyboardType(.decimalPad)
-                        .font(.body)
-                        .focused($focusedField, equals: .weight)
-                } header: {
-                    Text("Target Weight (kg)")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("Starting weight for this exercise")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
-                .listRowBackground(Color.summitCard)
-
-                Section {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Min")
-                                .font(.caption)
-                                .foregroundStyle(Color.summitTextSecondary)
-                            TextField("6", text: $targetRepsMin)
-                                .keyboardType(.numberPad)
-                                .font(.body)
-                                .focused($focusedField, equals: .repsMin)
-                        }
-
-                        Text("—")
-                            .foregroundStyle(Color.summitTextSecondary)
-                            .padding(.top, 20)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Max")
-                                .font(.caption)
-                                .foregroundStyle(Color.summitTextSecondary)
-                            TextField("8", text: $targetRepsMax)
-                                .keyboardType(.numberPad)
-                                .font(.body)
-                                .focused($focusedField, equals: .repsMax)
-                        }
-                    }
-                } header: {
-                    Text("Target Reps")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("Target rep range per set (e.g., 6-8, 8-12)")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
-                .listRowBackground(Color.summitCard)
-
-                Section {
-                    TextField("Number of Sets", text: $numberOfSets)
-                        .keyboardType(.numberPad)
-                        .font(.body)
-                        .focused($focusedField, equals: .sets)
-                } header: {
-                    Text("Sets")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("How many sets per workout")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
-                .listRowBackground(Color.summitCard)
-
-                Section {
-                    TextField("Notes (optional)", text: $exerciseNotes, axis: .vertical)
-                        .lineLimit(2...4)
-                        .font(.body)
-                        .focused($focusedField, equals: .notes)
-                } header: {
-                    Text("Notes")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("e.g., Pause at bottom, rest-pause on last set, tempo")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
-                .listRowBackground(Color.summitCard)
-
-                Section {
-                    VStack(spacing: 12) {
-                        Button {
-                            saveExercise(andAddAnother: false)
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text("Save & Exit")
-                                    .fontWeight(.semibold)
-                                Spacer()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.summitOrange)
-                        .disabled(!isFormValid)
-
-                        Button {
-                            saveExercise(andAddAnother: true)
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text("Save & Add Another")
-                                    .fontWeight(.medium)
-                                Spacer()
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(Color.summitOrange)
-                        .disabled(!isFormValid)
-                    }
-                    .listRowBackground(Color.clear)
-                }
+                nameSection
+                suggestionsSection
+                targetsSection
+                notesSection
             }
             .scrollContentBackground(.hidden)
             .background(Color.summitBackground)
@@ -190,35 +78,167 @@ struct CreateExerciseView: View {
                     .foregroundStyle(Color.summitTextSecondary)
                 }
 
-                ToolbarItem(placement: .keyboard) {
-                    Button("Done") {
-                        focusedField = nil
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        createExercise()
                     }
-                    .foregroundStyle(Color.summitOrange)
+                    .disabled(!canSave)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(canSave ? Color.summitOrange : Color.summitTextTertiary)
+                }
+            }
+            .onChange(of: exerciseName) { _, _ in
+                let normalized = normalizedName
+                if let match = definitions.first(where: { $0.normalizedName == normalized }) {
+                    if selectedDefinition?.id != match.id {
+                        selectedDefinition = match
+                    }
+                    autofillWeightIfNeeded(from: match)
+                } else if let selectedDefinition, selectedDefinition.normalizedName != normalized {
+                    self.selectedDefinition = nil
+                }
+            }
+            .onChange(of: targetRepsMin) { _, newValue in
+                if newValue > targetRepsMax {
+                    targetRepsMax = newValue
+                }
+            }
+            .onChange(of: targetRepsMax) { _, newValue in
+                if newValue < targetRepsMin {
+                    targetRepsMin = newValue
                 }
             }
         }
     }
 
-    private func saveExercise(andAddAnother: Bool) {
-        let trimmedName = exerciseName.trimmingCharacters(in: .whitespaces)
-        let trimmedNotes = exerciseNotes.trimmingCharacters(in: .whitespaces)
-
-        guard let weight = Double(targetWeight),
-              let repsMin = Int(targetRepsMin),
-              let repsMax = Int(targetRepsMax),
-              let sets = Int(numberOfSets) else {
-            return
+    private var nameSection: some View {
+        Section {
+            TextField("Exercise Name", text: $exerciseName)
+                .font(.body)
+        } header: {
+            Text("Name")
+                .textCase(nil)
+                .font(.subheadline)
+                .foregroundStyle(Color.summitTextSecondary)
+        } footer: {
+            Text("Names are matched case-insensitively, so “bench press” and “Bench Press” are the same exercise.")
+                .font(.caption)
+                .foregroundStyle(Color.summitTextTertiary)
         }
+        .listRowBackground(Color.summitCard)
+    }
+
+    @ViewBuilder
+    private var suggestionsSection: some View {
+        let suggestionList: [ExerciseDefinition] = suggestions
+
+        if !suggestionList.isEmpty {
+            Section {
+                ForEach(suggestionList, id: \ExerciseDefinition.id) { (definition: ExerciseDefinition) in
+                    Button {
+                        applyDefinition(definition)
+                    } label: {
+                        HStack {
+                            Text(definition.name)
+                            Spacer()
+                            if selectedDefinition?.id == definition.id {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.summitOrange)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            } header: {
+                Text("Suggestions")
+                    .textCase(nil)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.summitTextSecondary)
+            }
+            .listRowBackground(Color.summitCard)
+        }
+    }
+
+    private var targetsSection: some View {
+        Section {
+            HStack {
+                Text("Target Weight")
+                    .foregroundStyle(Color.summitTextSecondary)
+
+                Spacer()
+
+                TextField("0", value: $targetWeight, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+
+                Text("kg")
+                    .foregroundStyle(Color.summitTextSecondary)
+            }
+
+            Stepper(value: $targetRepsMin, in: 1...30) {
+                HStack {
+                    Text("Min Reps")
+                    Spacer()
+                    Text("\(targetRepsMin)")
+                        .foregroundStyle(Color.summitTextSecondary)
+                }
+            }
+
+            Stepper(value: $targetRepsMax, in: 1...30) {
+                HStack {
+                    Text("Max Reps")
+                    Spacer()
+                    Text("\(targetRepsMax)")
+                        .foregroundStyle(Color.summitTextSecondary)
+                }
+            }
+
+            Stepper(value: $numberOfSets, in: 1...20) {
+                HStack {
+                    Text("Sets")
+                    Spacer()
+                    Text("\(numberOfSets)")
+                        .foregroundStyle(Color.summitTextSecondary)
+                }
+            }
+        } header: {
+            Text("Targets")
+                .textCase(nil)
+                .font(.subheadline)
+                .foregroundStyle(Color.summitTextSecondary)
+        }
+        .listRowBackground(Color.summitCard)
+    }
+
+    private var notesSection: some View {
+        Section {
+            TextField("Notes (optional)", text: $notes, axis: .vertical)
+                .lineLimit(3...6)
+                .font(.body)
+        } header: {
+            Text("Notes")
+                .textCase(nil)
+                .font(.subheadline)
+                .foregroundStyle(Color.summitTextSecondary)
+        }
+        .listRowBackground(Color.summitCard)
+    }
+
+    private func createExercise() {
+        let trimmedName = exerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        let definition = resolveDefinition(for: trimmedName)
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let newExercise = Exercise(
-            name: trimmedName,
-            targetWeight: weight,
-            targetRepsMin: repsMin,
-            targetRepsMax: repsMax,
-            numberOfSets: sets,
+            definition: definition,
+            targetWeight: targetWeight,
+            targetRepsMin: targetRepsMin,
+            targetRepsMax: targetRepsMax,
+            numberOfSets: numberOfSets,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
-            orderIndex: workout.exercises.count,
+            orderIndex: existingExercises.count,
             workout: workout
         )
 
@@ -226,29 +246,43 @@ struct CreateExerciseView: View {
 
         do {
             try modelContext.save()
-
-            if andAddAnother {
-                // Clear form for next exercise
-                exerciseName = ""
-                targetWeight = ""
-                targetRepsMin = ""
-                targetRepsMax = ""
-                numberOfSets = ""
-                exerciseNotes = ""
-                focusedField = .name
-            } else {
-                dismiss()
-            }
+            dismiss()
         } catch {
             print("Error saving exercise: \(error)")
+        }
+    }
+
+    private func resolveDefinition(for name: String) -> ExerciseDefinition {
+        let normalized = ExerciseDefinition.normalize(name)
+
+        if let selectedDefinition, selectedDefinition.normalizedName == normalized {
+            return selectedDefinition
+        }
+
+        if let existing = definitions.first(where: { $0.normalizedName == normalized }) {
+            return existing
+        }
+
+        let definition = ExerciseDefinition(name: name)
+        modelContext.insert(definition)
+        return definition
+    }
+
+    private func applyDefinition(_ definition: ExerciseDefinition) {
+        selectedDefinition = definition
+        exerciseName = definition.name
+        autofillWeightIfNeeded(from: definition)
+    }
+
+    private func autofillWeightIfNeeded(from definition: ExerciseDefinition) {
+        guard targetWeight == 0 else { return }
+        if let suggestedWeight = DataHelpers.suggestedTargetWeight(for: definition, in: modelContext) {
+            targetWeight = suggestedWeight
         }
     }
 }
 
 #Preview {
-    CreateExerciseView(workout: {
-        let workout = Workout(name: "Push Day", orderIndex: 0)
-        return workout
-    }())
-    .modelContainer(ModelContainer.preview)
+    CreateExerciseView(workout: Workout(name: "Push Day", orderIndex: 0))
+        .modelContainer(ModelContainer.preview)
 }

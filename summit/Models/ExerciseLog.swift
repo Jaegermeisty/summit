@@ -11,8 +11,8 @@ import SwiftData
 @Model
 final class ExerciseLog {
     var id: UUID
-    var exerciseName: String
-    var weights: [Double] // Array of weights for each set (in kg)
+    var definition: ExerciseDefinition
+    var weight: Double // Weight used in kg
     var reps: [Int] // Array of reps for each set (e.g., [8, 7, 6] for 3 sets)
     var notes: String? // Optional notes for this specific session
     var orderIndex: Int // For maintaining exercise order in the workout
@@ -21,38 +21,37 @@ final class ExerciseLog {
 
     init(
         id: UUID = UUID(),
-        exerciseName: String,
-        weights: [Double],
+        definition: ExerciseDefinition,
+        weight: Double,
         reps: [Int],
         notes: String? = nil,
         orderIndex: Int = 0,
         session: WorkoutSession? = nil
     ) {
         self.id = id
-        self.exerciseName = exerciseName
-        self.weights = weights
+        self.definition = definition
+        self.weight = weight
         self.reps = reps
         self.notes = notes
         self.orderIndex = orderIndex
         self.session = session
     }
 
-    /// Calculate the estimated 1RM using the best set (highest reps with heaviest weight)
+    var exerciseName: String {
+        definition.name
+    }
+
+    var normalizedExerciseName: String {
+        definition.normalizedName
+    }
+
+    /// Calculate the estimated 1RM using the best set (highest reps)
     /// Formula: 1RM = weight × (1 + reps/30)
     var estimatedOneRepMax: Double {
-        guard !weights.isEmpty, !reps.isEmpty else { return 0 }
-
-        var bestEstimate: Double = 0
-        for (index, weight) in weights.enumerated() {
-            guard index < reps.count else { continue }
-            let repCount = reps[index]
-            let estimate = weight * (1 + Double(repCount) / 30.0)
-            if estimate > bestEstimate {
-                bestEstimate = estimate
-            }
+        guard let bestReps = reps.max(), bestReps > 0 else {
+            return weight
         }
-
-        return bestEstimate
+        return weight * (1 + Double(bestReps) / 30.0)
     }
 
     /// Get the best set (highest reps) for this exercise

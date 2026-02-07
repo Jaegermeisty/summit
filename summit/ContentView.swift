@@ -13,15 +13,16 @@ struct ContentView: View {
     @Query(sort: \WorkoutPlan.createdAt, order: .reverse) private var workoutPlans: [WorkoutPlan]
 
     @State private var showingCreatePlan = false
-    @State private var showingActiveWorkout = false
+    @State private var showingHistory = false
+    @State private var selectedSession: WorkoutSession?
     @State private var planToDelete: WorkoutPlan?
     @State private var showingDeleteConfirmation = false
 
-    var activePlan: WorkoutPlan? {
+    private var activePlan: WorkoutPlan? {
         workoutPlans.first(where: { $0.isActive })
     }
 
-    var otherPlans: [WorkoutPlan] {
+    private var otherPlans: [WorkoutPlan] {
         workoutPlans.filter { !$0.isActive }
     }
 
@@ -39,6 +40,16 @@ struct ContentView: View {
             .toolbarBackground(Color.summitBackground, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingHistory = true
+                    } label: {
+                        Image(systemName: "clock")
+                            .foregroundStyle(Color.summitOrange)
+                    }
+                    .accessibilityLabel("History")
+                }
+
+                ToolbarItem(placement: .principal) {
                     Text("Summit")
                         .font(.system(size: 18, weight: .bold))
                         .italic()
@@ -58,10 +69,16 @@ struct ContentView: View {
             .sheet(isPresented: $showingCreatePlan) {
                 CreateWorkoutPlanView()
             }
-            .sheet(isPresented: $showingActiveWorkout) {
-                if let plan = activePlan,
-                   let nextWorkout = DataHelpers.nextWorkout(in: plan, context: modelContext) {
-                    ActiveWorkoutSessionView(workout: nextWorkout, plan: plan)
+            .sheet(isPresented: $showingHistory) {
+                NavigationStack {
+                    HistoryView()
+                }
+            }
+            .navigationDestination(item: $selectedSession) { session in
+                if let workout = DataHelpers.workout(with: session.workoutTemplateId, in: modelContext) {
+                    WorkoutSessionView(session: session, workout: workout)
+                } else {
+                    WorkoutSessionView(session: session, workout: Workout(name: session.workoutTemplateName))
                 }
             }
             .alert("Delete Workout Plan", isPresented: $showingDeleteConfirmation, presenting: planToDelete) { plan in
@@ -97,14 +114,13 @@ struct ContentView: View {
 
     private var mainContentView: some View {
         List {
-            // Active Plan Section
-            if let active = activePlan {
-                Section {
+            Section {
+                if let active = activePlan {
                     ActivePlanCardView(
                         plan: active,
                         nextWorkout: DataHelpers.nextWorkout(in: active, context: modelContext),
-                        onStartWorkout: {
-                            showingActiveWorkout = true
+                        onStartWorkout: { workout in
+                            selectedSession = DataHelpers.startSession(for: workout, in: modelContext)
                         }
                     )
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
@@ -117,22 +133,30 @@ struct ContentView: View {
                             Label("Delete Plan", systemImage: "trash")
                         }
                     }
-                } header: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Active Plan")
-                            .textCase(nil)
-                            .font(.headline)
+                } else {
+                    ContentUnavailableView {
+                        Label("No Active Plan", systemImage: "flag.circle")
                             .foregroundStyle(Color.summitText)
-
-                        Rectangle()
-                            .fill(Color.summitOrange)
-                            .frame(height: 2)
+                    } description: {
+                        Text("Set a plan as active to show the next workout here")
+                            .foregroundStyle(Color.summitTextSecondary)
                     }
-                    .padding(.bottom, 4)
+                    .listRowBackground(Color.clear)
                 }
+            } header: {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Active Plan")
+                        .textCase(nil)
+                        .font(.headline)
+                        .foregroundStyle(Color.summitText)
+
+                    Rectangle()
+                        .fill(Color.summitOrange)
+                        .frame(height: 2)
+                }
+                .padding(.bottom, 4)
             }
 
-            // Other Plans Section
             if !otherPlans.isEmpty {
                 Section {
                     ForEach(otherPlans) { plan in
@@ -190,12 +214,9 @@ struct ContentView: View {
     }
 
     private func setActivePlan(_ plan: WorkoutPlan) {
-        // Deactivate all plans
         for p in workoutPlans {
             p.isActive = false
         }
-
-        // Activate the selected plan
         plan.isActive = true
 
         do {
@@ -207,7 +228,18 @@ struct ContentView: View {
 }
 
 struct PlanRowView: View {
-    let plan: WorkoutPlan
+    @Bindable var plan: WorkoutPlan
+    @Query private var workouts: [Workout]
+
+    init(plan: WorkoutPlan) {
+        _plan = Bindable(wrappedValue: plan)
+        let planId = plan.id
+        _workouts = Query(
+            filter: #Predicate<Workout> { workout in
+                workout.workoutPlan?.id == planId
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -240,11 +272,11 @@ struct PlanRowView: View {
             }
 
             HStack(spacing: 12) {
-                Label("\(plan.workouts.count)", systemImage: "list.bullet")
+                Label("\(workouts.count)", systemImage: "list.bullet")
                     .font(.caption)
                     .foregroundStyle(Color.summitTextTertiary)
 
-                Text(plan.workouts.count == 1 ? "workout" : "workouts")
+                Text(workouts.count == 1 ? "workout" : "workouts")
                     .font(.caption)
                     .foregroundStyle(Color.summitTextTertiary)
             }
@@ -254,13 +286,17 @@ struct PlanRowView: View {
 }
 
 struct ActivePlanCardView: View {
+    @Environment(\.modelContext) private var modelContext
     let plan: WorkoutPlan
     let nextWorkout: Workout?
-    let onStartWorkout: () -> Void
+    let onStartWorkout: (Workout) -> Void
+
+    private var workoutCount: Int {
+        DataHelpers.workouts(for: plan, in: modelContext).count
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Plan info
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(plan.name)
@@ -285,18 +321,18 @@ struct ActivePlanCardView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Label("\(plan.workouts.count)", systemImage: "list.bullet")
+                    Label("\(workoutCount)", systemImage: "list.bullet")
                         .font(.caption)
                         .foregroundStyle(Color.summitTextTertiary)
 
-                    Text(plan.workouts.count == 1 ? "workout" : "workouts")
+                    Text(workoutCount == 1 ? "workout" : "workouts")
                         .font(.caption)
                         .foregroundStyle(Color.summitTextTertiary)
                 }
             }
 
-            // Next workout info
             if let workout = nextWorkout {
+                let exerciseCount = DataHelpers.exercises(for: workout, in: modelContext).count
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Next Workout")
                         .font(.caption)
@@ -310,7 +346,7 @@ struct ActivePlanCardView: View {
                                 .font(.headline)
                                 .foregroundStyle(Color.summitText)
 
-                            Text("\(workout.exercises.count) exercise\(workout.exercises.count == 1 ? "" : "s")")
+                            Text("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
                                 .font(.caption)
                                 .foregroundStyle(Color.summitTextSecondary)
                         }
@@ -325,9 +361,8 @@ struct ActivePlanCardView: View {
                         .fill(Color.summitOrange.opacity(0.15))
                 )
 
-                // Start Workout button
                 Button {
-                    onStartWorkout()
+                    onStartWorkout(workout)
                 } label: {
                     HStack {
                         Spacer()

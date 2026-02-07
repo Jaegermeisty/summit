@@ -14,6 +14,7 @@ extension ModelContainer {
         let schema = Schema([
             WorkoutPlan.self,
             Workout.self,
+            ExerciseDefinition.self,
             Exercise.self,
             WorkoutSession.self,
             ExerciseLog.self,
@@ -41,6 +42,7 @@ extension ModelContainer {
         let schema = Schema([
             WorkoutPlan.self,
             Workout.self,
+            ExerciseDefinition.self,
             Exercise.self,
             WorkoutSession.self,
             ExerciseLog.self,
@@ -77,8 +79,13 @@ extension ModelContainer {
             context.insert(pushDay)
             
             // Add exercises to Push Day
+            let benchDefinition = ExerciseDefinition(name: "Bench Press")
+            let shoulderDefinition = ExerciseDefinition(name: "Shoulder Press")
+            context.insert(benchDefinition)
+            context.insert(shoulderDefinition)
+
             let benchPress = Exercise(
-                name: "Bench Press",
+                definition: benchDefinition,
                 targetWeight: 60.0,
                 targetRepsMin: 6,
                 targetRepsMax: 8,
@@ -90,7 +97,7 @@ extension ModelContainer {
             context.insert(benchPress)
             
             let shoulderPress = Exercise(
-                name: "Shoulder Press",
+                definition: shoulderDefinition,
                 targetWeight: 40.0,
                 targetRepsMin: 8,
                 targetRepsMax: 10,
@@ -107,9 +114,12 @@ extension ModelContainer {
                 workoutPlan: plan
             )
             context.insert(pullDay)
-            
+
+            let deadliftDefinition = ExerciseDefinition(name: "Deadlift")
+            context.insert(deadliftDefinition)
+
             let deadlift = Exercise(
-                name: "Deadlift",
+                definition: deadliftDefinition,
                 targetWeight: 100.0,
                 targetRepsMin: 5,
                 targetRepsMax: 6,
@@ -123,6 +133,8 @@ extension ModelContainer {
             // Create a sample workout session
             let session = WorkoutSession(
                 date: Date().addingTimeInterval(-86400 * 3), // 3 days ago
+                isCompleted: true,
+                completedAt: Date().addingTimeInterval(-86400 * 3),
                 workoutTemplateId: pushDay.id,
                 workoutTemplateName: pushDay.name,
                 workoutPlanId: plan.id,
@@ -131,8 +143,8 @@ extension ModelContainer {
             context.insert(session)
             
             let benchLog = ExerciseLog(
-                exerciseName: "Bench Press",
-                weights: [60.0, 60.0, 57.5],
+                definition: benchDefinition,
+                weight: 60.0,
                 reps: [8, 7, 6],
                 orderIndex: 0,
                 session: session

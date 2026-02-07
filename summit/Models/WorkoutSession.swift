@@ -9,9 +9,11 @@ import Foundation
 import SwiftData
 
 @Model
-final class WorkoutSession {
+final class WorkoutSession: Identifiable {
     var id: UUID
     var date: Date
+    var isCompleted: Bool
+    var completedAt: Date?
     var workoutTemplateId: UUID // Reference to the Workout template used
     var workoutTemplateName: String // Store name for historical reference
     var workoutPlanId: UUID // Reference to the WorkoutPlan
@@ -23,6 +25,8 @@ final class WorkoutSession {
     init(
         id: UUID = UUID(),
         date: Date = Date(),
+        isCompleted: Bool = false,
+        completedAt: Date? = nil,
         workoutTemplateId: UUID,
         workoutTemplateName: String,
         workoutPlanId: UUID,
@@ -31,6 +35,8 @@ final class WorkoutSession {
     ) {
         self.id = id
         self.date = date
+        self.isCompleted = isCompleted
+        self.completedAt = completedAt
         self.workoutTemplateId = workoutTemplateId
         self.workoutTemplateName = workoutTemplateName
         self.workoutPlanId = workoutPlanId

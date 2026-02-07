@@ -9,7 +9,7 @@ import Foundation
 import SwiftData
 
 @Model
-final class Workout {
+final class Workout: Identifiable {
     var id: UUID
     var name: String
     var notes: String? // Optional notes about the workout
