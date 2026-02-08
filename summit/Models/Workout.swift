@@ -16,6 +16,7 @@ final class Workout: Identifiable {
     var orderIndex: Int // For ordering workouts within a plan (e.g., Day 1, Day 2)
 
     var workoutPlan: WorkoutPlan?
+    var phase: PlanPhase?
 
     @Relationship(deleteRule: .cascade, inverse: \Exercise.workout)
     var exercises: [Exercise]
@@ -26,6 +27,7 @@ final class Workout: Identifiable {
         notes: String? = nil,
         orderIndex: Int = 0,
         workoutPlan: WorkoutPlan? = nil,
+        phase: PlanPhase? = nil,
         exercises: [Exercise] = []
     ) {
         self.id = id
@@ -33,6 +35,7 @@ final class Workout: Identifiable {
         self.notes = notes
         self.orderIndex = orderIndex
         self.workoutPlan = workoutPlan
+        self.phase = phase
         self.exercises = exercises
     }
 }

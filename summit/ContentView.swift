@@ -14,6 +14,7 @@ struct ContentView: View {
 
     @State private var showingCreatePlan = false
     @State private var showingHistory = false
+    @State private var showingAnalytics = false
     @State private var selectedSession: WorkoutSession?
     @State private var planToDelete: WorkoutPlan?
     @State private var showingDeleteConfirmation = false
@@ -40,13 +41,23 @@ struct ContentView: View {
             .toolbarBackground(Color.summitBackground, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showingHistory = true
-                    } label: {
-                        Image(systemName: "clock")
-                            .foregroundStyle(Color.summitOrange)
+                    HStack(spacing: 12) {
+                        Button {
+                            showingAnalytics = true
+                        } label: {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .foregroundStyle(Color.summitOrange)
+                        }
+                        .accessibilityLabel("Analytics")
+
+                        Button {
+                            showingHistory = true
+                        } label: {
+                            Image(systemName: "clock")
+                                .foregroundStyle(Color.summitOrange)
+                        }
+                        .accessibilityLabel("History")
                     }
-                    .accessibilityLabel("History")
                 }
 
                 ToolbarItem(placement: .principal) {
@@ -68,6 +79,11 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingCreatePlan) {
                 CreateWorkoutPlanView()
+            }
+            .sheet(isPresented: $showingAnalytics) {
+                NavigationStack {
+                    AnalyticsView()
+                }
             }
             .sheet(isPresented: $showingHistory) {
                 NavigationStack {
@@ -295,6 +311,10 @@ struct ActivePlanCardView: View {
         DataHelpers.workouts(for: plan, in: modelContext).count
     }
 
+    private var activePhaseName: String? {
+        DataHelpers.activePhase(for: plan, in: modelContext)?.name
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
@@ -318,6 +338,13 @@ struct ActivePlanCardView: View {
                         .font(.subheadline)
                         .foregroundStyle(Color.summitTextSecondary)
                         .lineLimit(2)
+                }
+
+                if let phaseName = activePhaseName {
+                    Text("Phase: \(phaseName)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
 
                 HStack(spacing: 12) {

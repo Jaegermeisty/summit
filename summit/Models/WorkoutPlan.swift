@@ -18,6 +18,9 @@ final class WorkoutPlan: Identifiable {
     
     @Relationship(deleteRule: .cascade, inverse: \Workout.workoutPlan)
     var workouts: [Workout]
+
+    @Relationship(deleteRule: .cascade, inverse: \PlanPhase.workoutPlan)
+    var phases: [PlanPhase]
     
     init(
         id: UUID = UUID(),
@@ -25,7 +28,8 @@ final class WorkoutPlan: Identifiable {
         planDescription: String? = nil,
         createdAt: Date = Date(),
         isActive: Bool = true,
-        workouts: [Workout] = []
+        workouts: [Workout] = [],
+        phases: [PlanPhase] = []
     ) {
         self.id = id
         self.name = name
@@ -33,5 +37,6 @@ final class WorkoutPlan: Identifiable {
         self.createdAt = createdAt
         self.isActive = isActive
         self.workouts = workouts
+        self.phases = phases
     }
 }

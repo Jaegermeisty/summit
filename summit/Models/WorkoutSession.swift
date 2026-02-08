@@ -18,6 +18,8 @@ final class WorkoutSession: Identifiable {
     var workoutTemplateName: String // Store name for historical reference
     var workoutPlanId: UUID // Reference to the WorkoutPlan
     var workoutPlanName: String // Store plan name for historical reference
+    var phaseId: UUID?
+    var phaseName: String?
     
     @Relationship(deleteRule: .cascade, inverse: \ExerciseLog.session)
     var exerciseLogs: [ExerciseLog]
@@ -31,6 +33,8 @@ final class WorkoutSession: Identifiable {
         workoutTemplateName: String,
         workoutPlanId: UUID,
         workoutPlanName: String,
+        phaseId: UUID? = nil,
+        phaseName: String? = nil,
         exerciseLogs: [ExerciseLog] = []
     ) {
         self.id = id
@@ -41,6 +45,8 @@ final class WorkoutSession: Identifiable {
         self.workoutTemplateName = workoutTemplateName
         self.workoutPlanId = workoutPlanId
         self.workoutPlanName = workoutPlanName
+        self.phaseId = phaseId
+        self.phaseName = phaseName
         self.exerciseLogs = exerciseLogs
     }
 }

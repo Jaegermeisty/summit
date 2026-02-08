@@ -14,9 +14,11 @@ struct CreateWorkoutView: View {
 
     let workoutPlan: WorkoutPlan
     @Query private var existingWorkouts: [Workout]
+    @Query private var phases: [PlanPhase]
 
     @State private var workoutName: String = ""
     @State private var workoutNotes: String = ""
+    @State private var selectedPhaseId: UUID?
 
     init(workoutPlan: WorkoutPlan) {
         self.workoutPlan = workoutPlan
@@ -25,6 +27,13 @@ struct CreateWorkoutView: View {
             filter: #Predicate<Workout> { workout in
                 workout.workoutPlan?.id == planId
             }
+        )
+        _phases = Query(
+            filter: #Predicate<PlanPhase> { phase in
+                phase.workoutPlan?.id == planId
+            },
+            sort: \PlanPhase.orderIndex,
+            order: .forward
         )
     }
 
@@ -62,6 +71,27 @@ struct CreateWorkoutView: View {
                 }
                 .listRowBackground(Color.summitCard)
 
+                if !phases.isEmpty {
+                    Section {
+                        Picker("Phase", selection: $selectedPhaseId) {
+                            ForEach(phases) { phase in
+                                Text(phase.name).tag(Optional(phase.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    } header: {
+                        Text("Phase")
+                            .textCase(nil)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.summitTextSecondary)
+                    } footer: {
+                        Text("Workouts must belong to a phase when phases are enabled. You can move them later.")
+                            .font(.caption)
+                            .foregroundStyle(Color.summitTextTertiary)
+                    }
+                    .listRowBackground(Color.summitCard)
+                }
+
                 Section {
                     HStack {
                         Text("Position in Plan")
@@ -69,11 +99,19 @@ struct CreateWorkoutView: View {
 
                         Spacer()
 
-                        Text("Day \(existingWorkouts.count + 1)")
-                            .foregroundStyle(Color.summitText)
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("Day \(workoutCount + 1)")
+                                .foregroundStyle(Color.summitText)
+
+                            if let phaseName = selectedPhase?.name {
+                                Text(phaseName)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.summitTextSecondary)
+                            }
+                        }
                     }
                 } footer: {
-                    Text("This workout will be added as the next day in your plan rotation")
+                    Text(positionFooterText)
                         .font(.caption)
                         .foregroundStyle(Color.summitTextTertiary)
                 }
@@ -103,17 +141,24 @@ struct CreateWorkoutView: View {
                 }
             }
         }
+        .onAppear {
+            if selectedPhaseId == nil, let activePhase = DataHelpers.activePhase(for: workoutPlan, in: modelContext) {
+                selectedPhaseId = activePhase.id
+            }
+        }
     }
 
     private func createWorkout() {
         let trimmedName = workoutName.trimmingCharacters(in: .whitespaces)
         let trimmedNotes = workoutNotes.trimmingCharacters(in: .whitespaces)
+        let phase = selectedPhase
 
         let newWorkout = Workout(
             name: trimmedName,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
-            orderIndex: existingWorkouts.count,
-            workoutPlan: workoutPlan
+            orderIndex: workoutCount,
+            workoutPlan: workoutPlan,
+            phase: phase
         )
 
         modelContext.insert(newWorkout)
@@ -124,6 +169,28 @@ struct CreateWorkoutView: View {
         } catch {
             print("Error saving workout: \(error)")
         }
+    }
+
+    private var selectedPhase: PlanPhase? {
+        guard !phases.isEmpty else { return nil }
+        if let selectedPhaseId {
+            return phases.first(where: { $0.id == selectedPhaseId }) ?? phases.first
+        }
+        return phases.first
+    }
+
+    private var workoutCount: Int {
+        if let phase = selectedPhase {
+            return DataHelpers.workouts(for: workoutPlan, in: modelContext, phase: phase).count
+        }
+        return existingWorkouts.count
+    }
+
+    private var positionFooterText: String {
+        if let phaseName = selectedPhase?.name {
+            return "This workout will be added as the next day in \(phaseName)."
+        }
+        return "This workout will be added as the next day in your plan rotation."
     }
 }
 

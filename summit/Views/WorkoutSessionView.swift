@@ -42,6 +42,12 @@ struct WorkoutSessionView: View {
                         Text(session.workoutTemplateName)
                             .font(.headline)
 
+                        if let phaseName = session.phaseName, !phaseName.isEmpty {
+                            Text("Phase: \(phaseName)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
                         Text(session.isCompleted ? "Completed" : "In Progress")
                             .font(.caption)
                             .foregroundStyle(.secondary)

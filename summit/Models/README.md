@@ -17,6 +17,7 @@ The app should make it effortless to train from the **active plan**:
 - Users can still manually pick a different workout if they want to skip or change the order.
 - Analytics should support **global exercise history** across all plans (e.g., Bench Press progress continues even after switching plans).
 - During a workout, show **last performance for this specific workout day** (same exercise template), not global history.
+- Plans can optionally be split into **phases (blocks)** with a single active phase used for the next-workout rotation.
 
 ## Current Implementation (What Exists Today)
 
@@ -28,18 +29,22 @@ The app should make it effortless to train from the **active plan**:
 - Session flow with per-set logging and last performance per workout/day.
 - History list (last 5 completed sessions) with edit capability.
 - Session completion toast on finish.
+- Phases (blocks) for plans, with active phase selection and phase-aware next workout.
+- Analytics screen:
+  - Exercise progress (1RM) over time
+  - Plan strength score and volume over time
 
 ## Planned / In-Scope Next Steps
 
 These are **intended features**, not yet implemented:
 
-- Exercise history + progress graphs
-- Plan-level analytics and plan comparisons
 - Paywall:
   - Free: create plans/workouts, track a session in-progress
   - Pro (one-time purchase): persistent history + analytics
   - Data only starts being saved **after** purchase; no retroactive history
   - In-progress session data should persist even if the app is backgrounded or closed
+- Plan comparison view
+- Phase management polish (multi-select move/copy, phase rename)
 
 ## MVP Roadmap (Checklist)
 
@@ -52,6 +57,7 @@ Foundation
 - [x] Add exercise editing UI
 - [x] Active plan selection (single active plan)
 - [x] Home screen “Start Next Workout”
+- [x] Plan phases (blocks) + active phase selection
 
 Logging
 - [x] Start/continue workout session flow
@@ -63,9 +69,9 @@ Logging
 - [x] Session completed toast
 
 Analytics (Pro)
-- [ ] Exercise history graph (per exercise)
-- [ ] Global exercise history across all plans (same exercise name aggregates)
-- [ ] Plan-level progress graph
+- [x] Exercise history graph (per exercise)
+- [x] Global exercise history across all plans (same exercise name aggregates)
+- [x] Plan-level progress graph (strength score + volume)
 - [ ] Plan comparison view
 
 Monetization
@@ -74,11 +80,11 @@ Monetization
 ## Next Up (Prioritized)
 
 1. Add paywall gating for history saving + analytics (one-time purchase).
-2. Build Analytics screen:
-   - Exercise history graph (per exercise)
-   - Plan-level progress graph
-   - Plan comparison view
-3. Add exercise search + selector in Analytics for global history.
+2. Plan comparison view (side-by-side or overlay charts).
+3. Phase management polish:
+   - Rename phase
+   - Multi-select move/copy workouts between phases
+4. Exercise search + selector polish in Analytics (filters, favorites).
 
 ## Model Files
 
@@ -98,7 +104,8 @@ Monetization
 ## Data Model Relationships
 
 ```
-WorkoutPlan (1) ──→ (many) Workout
+WorkoutPlan (1) ──→ (many) PlanPhase ──→ (many) Workout
+   └─────────────→ (many) Workout (when phases are disabled)
                      └──→ (many) Exercise ──→ ExerciseDefinition
 
 WorkoutSession ──references──→ Workout (template)

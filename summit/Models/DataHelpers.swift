@@ -102,31 +102,38 @@ struct DataHelpers {
         let descriptor = FetchDescriptor<WorkoutSession>(
             sortBy: [SortDescriptor(\WorkoutSession.date, order: .reverse)]
         )
-
+        
         do {
             let allSessions = try context.fetch(descriptor)
 
-            // Filter to sessions from this plan
-            let planSessions = allSessions.filter { $0.workoutPlanId == plan.id && $0.isCompleted }
-
-            guard let lastSession = planSessions.first else {
-                // No sessions yet, return first workout
-                return workouts(for: plan, in: context).first
+            let activePhase = activePhase(for: plan, in: context)
+            let planSessions = allSessions.filter { session in
+                guard session.workoutPlanId == plan.id && session.isCompleted else { return false }
+                if let activePhase, let phaseId = session.phaseId {
+                    return phaseId == activePhase.id
+                }
+                return activePhase == nil
             }
 
-            // Find the next workout in the rotation
-            let sortedWorkouts = workouts(for: plan, in: context)
+            let filteredWorkouts = workouts(for: plan, in: context, phase: activePhase)
 
+            guard let lastSession = planSessions.first else {
+                return filteredWorkouts.first
+            }
+            
+            // Find the next workout in the rotation
+            let sortedWorkouts = filteredWorkouts
+            
             if let lastWorkoutIndex = sortedWorkouts.firstIndex(where: { $0.id == lastSession.workoutTemplateId }) {
                 let nextIndex = (lastWorkoutIndex + 1) % sortedWorkouts.count
                 return sortedWorkouts[nextIndex]
             }
-
+            
             // Fallback to first workout
             return sortedWorkouts.first
         } catch {
             print("Error finding next workout: \(error)")
-            return workouts(for: plan, in: context).first
+            return workouts(for: plan, in: context, phase: activePhase(for: plan, in: context)).first
         }
     }
 
@@ -195,11 +202,14 @@ struct DataHelpers {
         }
 
         let plan = workout.workoutPlan
+        let phase = workout.phase
         let session = WorkoutSession(
             workoutTemplateId: workout.id,
             workoutTemplateName: workout.name,
             workoutPlanId: plan?.id ?? UUID(),
-            workoutPlanName: plan?.name ?? "Unknown Plan"
+            workoutPlanName: plan?.name ?? "Unknown Plan",
+            phaseId: phase?.id,
+            phaseName: phase?.name
         )
         context.insert(session)
 
@@ -272,10 +282,22 @@ struct DataHelpers {
         for plan: WorkoutPlan,
         in context: ModelContext
     ) -> [Workout] {
+        workouts(for: plan, in: context, phase: nil)
+    }
+
+    /// Fetch workouts for a plan and optional phase
+    static func workouts(
+        for plan: WorkoutPlan,
+        in context: ModelContext,
+        phase: PlanPhase?
+    ) -> [Workout] {
         let planId = plan.id
         let descriptor = FetchDescriptor<Workout>(
             predicate: #Predicate<Workout> { workout in
-                workout.workoutPlan?.id == planId
+                if let phaseId = phase?.id {
+                    return workout.workoutPlan?.id == planId && workout.phase?.id == phaseId
+                }
+                return workout.workoutPlan?.id == planId
             },
             sortBy: [SortDescriptor(\Workout.orderIndex, order: .forward)]
         )
@@ -284,6 +306,57 @@ struct DataHelpers {
             return try context.fetch(descriptor)
         } catch {
             print("Error fetching workouts: \(error)")
+            return []
+        }
+    }
+
+    /// Fetch phases for a plan
+    static func phases(
+        for plan: WorkoutPlan,
+        in context: ModelContext
+    ) -> [PlanPhase] {
+        let planId = plan.id
+        let descriptor = FetchDescriptor<PlanPhase>(
+            predicate: #Predicate<PlanPhase> { phase in
+                phase.workoutPlan?.id == planId
+            },
+            sortBy: [SortDescriptor(\PlanPhase.orderIndex, order: .forward)]
+        )
+
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            print("Error fetching phases: \(error)")
+            return []
+        }
+    }
+
+    /// Get the active phase for a plan, if any
+    static func activePhase(
+        for plan: WorkoutPlan,
+        in context: ModelContext
+    ) -> PlanPhase? {
+        let phases = phases(for: plan, in: context)
+        return phases.first(where: { $0.isActive }) ?? phases.first
+    }
+
+    /// Fetch completed sessions for a plan
+    static func completedSessions(
+        for plan: WorkoutPlan,
+        in context: ModelContext
+    ) -> [WorkoutSession] {
+        let planId = plan.id
+        let descriptor = FetchDescriptor<WorkoutSession>(
+            predicate: #Predicate<WorkoutSession> { session in
+                session.workoutPlanId == planId && session.isCompleted == true
+            },
+            sortBy: [SortDescriptor(\WorkoutSession.date, order: .forward)]
+        )
+
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            print("Error fetching completed sessions: \(error)")
             return []
         }
     }

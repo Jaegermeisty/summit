@@ -14,6 +14,7 @@ extension ModelContainer {
         let schema = Schema([
             WorkoutPlan.self,
             Workout.self,
+            PlanPhase.self,
             ExerciseDefinition.self,
             Exercise.self,
             WorkoutSession.self,
@@ -42,6 +43,7 @@ extension ModelContainer {
         let schema = Schema([
             WorkoutPlan.self,
             Workout.self,
+            PlanPhase.self,
             ExerciseDefinition.self,
             Exercise.self,
             WorkoutSession.self,
@@ -69,12 +71,21 @@ extension ModelContainer {
                 planDescription: "Classic 3-day split focusing on push, pull, and leg movements"
             )
             context.insert(plan)
+
+            let phaseOne = PlanPhase(
+                name: "Phase 1",
+                orderIndex: 0,
+                isActive: true,
+                workoutPlan: plan
+            )
+            context.insert(phaseOne)
             
             // Create Push Day workout
             let pushDay = Workout(
                 name: "Push Day",
                 orderIndex: 0,
-                workoutPlan: plan
+                workoutPlan: plan,
+                phase: phaseOne
             )
             context.insert(pushDay)
             
@@ -111,7 +122,8 @@ extension ModelContainer {
             let pullDay = Workout(
                 name: "Pull Day",
                 orderIndex: 1,
-                workoutPlan: plan
+                workoutPlan: plan,
+                phase: phaseOne
             )
             context.insert(pullDay)
 
@@ -138,7 +150,9 @@ extension ModelContainer {
                 workoutTemplateId: pushDay.id,
                 workoutTemplateName: pushDay.name,
                 workoutPlanId: plan.id,
-                workoutPlanName: plan.name
+                workoutPlanName: plan.name,
+                phaseId: phaseOne.id,
+                phaseName: phaseOne.name
             )
             context.insert(session)
             

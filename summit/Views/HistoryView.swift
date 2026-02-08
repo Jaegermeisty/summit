@@ -84,6 +84,12 @@ struct HistoryRowView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let phaseName = session.phaseName, !phaseName.isEmpty {
+                Text("Phase: \(phaseName)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Text(session.date, format: .dateTime.year().month().day().hour().minute())
                 .font(.caption)
                 .foregroundStyle(.secondary)
