@@ -20,14 +20,14 @@ struct WorkoutPlanDetailView: View {
     @Query private var phases: [PlanPhase]
 
     @State private var showingCreateWorkout = false
+    @State private var createWorkoutPhaseId: UUID?
     @State private var workoutToDelete: Workout?
     @State private var showingDeleteConfirmation = false
     @State private var showingPhasePrompt = false
     @State private var phasePromptMode: PhasePromptMode = .enable
     @State private var phaseNameInput: String = ""
-    @State private var selectedPhaseId: UUID?
-    @State private var workoutToMove: Workout?
-    @State private var showingMoveDialog = false
+    @State private var phaseToDelete: PlanPhase?
+    @State private var showingDeletePhaseConfirmation = false
 
     init(plan: WorkoutPlan) {
         _plan = Bindable(wrappedValue: plan)
@@ -78,96 +78,96 @@ struct WorkoutPlanDetailView: View {
                     .padding(.vertical, 6)
                     .listRowBackground(Color.summitCard)
                 } else {
-                    HStack {
-                        Text("Active Phase")
-                            .foregroundStyle(Color.summitTextSecondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Tap a phase to see its workouts.")
+                            .font(.caption)
+                            .foregroundStyle(Color.summitTextTertiary)
 
-                        Spacer()
-
-                        Picker("Active Phase", selection: $selectedPhaseId) {
-                            ForEach(phases) { phase in
-                                Text(phase.name).tag(Optional(phase.id))
-                            }
-                        }
-                        .pickerStyle(.menu)
+                        Text("Active phase controls the next workout shown on Home.")
+                            .font(.caption)
+                            .foregroundStyle(Color.summitTextTertiary)
                     }
+                    .padding(.vertical, 4)
                     .listRowBackground(Color.summitCard)
                 }
-            } header: {
-                HStack {
+            }
+
+            if phases.isEmpty {
+                Section {
+                    if workouts.isEmpty {
+                        ContentUnavailableView {
+                            Label("No Workouts", systemImage: "figure.strengthtraining.traditional")
+                                .foregroundStyle(Color.summitText)
+                        } description: {
+                            Text("Add your first workout to get started")
+                                .foregroundStyle(Color.summitTextSecondary)
+                        } actions: {
+                            Button {
+                                showCreateWorkout()
+                            } label: {
+                                Text("Add Workout")
+                                    .fontWeight(.semibold)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color.summitOrange)
+                        }
+                        .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(workouts) { workout in
+                            NavigationLink(destination: WorkoutDetailView(workout: workout)) {
+                                WorkoutRowView(workout: workout)
+                            }
+                            .listRowBackground(Color.summitCard)
+                        }
+                        .onDelete { offsets in
+                            deleteWorkouts(at: offsets, in: nil)
+                        }
+                    }
+                } header: {
+                    Text("Workouts")
+                        .textCase(nil)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.summitTextSecondary)
+                } footer: {
+                    if !workouts.isEmpty {
+                        Text("Swipe left on a workout to delete it")
+                            .font(.caption)
+                            .foregroundStyle(Color.summitTextTertiary)
+                    }
+                }
+            } else {
+                Section {
+                    ForEach(phases) { phase in
+                        NavigationLink {
+                            PhaseDetailView(phase: phase, plan: plan)
+                        } label: {
+                            PhaseListRowView(phase: phase, workoutCount: workouts(in: phase).count)
+                        }
+                        .listRowBackground(Color.summitCard)
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            if !phase.isActive {
+                                Button {
+                                    setActivePhase(phase)
+                                } label: {
+                                    Label("Set Active", systemImage: "star.fill")
+                                }
+                                .tint(Color.summitOrange)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                phaseToDelete = phase
+                                showingDeletePhaseConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                } header: {
                     Text("Phases")
                         .textCase(nil)
                         .font(.subheadline)
                         .foregroundStyle(Color.summitTextSecondary)
-
-                    Spacer()
-
-                    if !phases.isEmpty {
-                        Button {
-                            showPhasePrompt(.add)
-                        } label: {
-                            Image(systemName: "plus")
-                                .foregroundStyle(Color.summitOrange)
-                        }
-                        .accessibilityLabel("Add Phase")
-                    }
-                }
-            } footer: {
-                if !phases.isEmpty {
-                    Text("You can move workouts between phases later from the workouts list.")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
-            }
-
-            Section {
-                if visibleWorkouts.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Workouts", systemImage: "figure.strengthtraining.traditional")
-                            .foregroundStyle(Color.summitText)
-                    } description: {
-                        Text("Add your first workout to get started")
-                            .foregroundStyle(Color.summitTextSecondary)
-                    } actions: {
-                        Button {
-                            showingCreateWorkout = true
-                        } label: {
-                            Text("Add Workout")
-                                .fontWeight(.semibold)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.summitOrange)
-                    }
-                        .listRowBackground(Color.clear)
-                } else {
-                    ForEach(visibleWorkouts) { workout in
-                        NavigationLink(destination: WorkoutDetailView(workout: workout)) {
-                            WorkoutRowView(workout: workout)
-                        }
-                        .listRowBackground(Color.summitCard)
-                        .contextMenu {
-                            if phases.count > 1 {
-                                Button {
-                                    workoutToMove = workout
-                                    showingMoveDialog = true
-                                } label: {
-                                    Label("Move to Phase", systemImage: "arrow.right")
-                                }
-                            }
-                        }
-                    }
-                    .onDelete(perform: deleteWorkouts)
-                }
-            } header: {
-                Text(workoutsHeaderTitle)
-                    .textCase(nil)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
-            } footer: {
-                if !visibleWorkouts.isEmpty {
-                    Text("Swipe left on a workout to delete it")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
                 }
             }
         }
@@ -188,7 +188,11 @@ struct WorkoutPlanDetailView: View {
 
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    showingCreateWorkout = true
+                    if phases.isEmpty {
+                        showCreateWorkout()
+                    } else {
+                        showPhasePrompt(.add)
+                    }
                 } label: {
                     Image(systemName: "plus")
                         .foregroundStyle(Color.summitOrange)
@@ -196,17 +200,7 @@ struct WorkoutPlanDetailView: View {
             }
         }
         .sheet(isPresented: $showingCreateWorkout) {
-            CreateWorkoutView(workoutPlan: plan)
-        }
-        .confirmationDialog("Move Workout", isPresented: $showingMoveDialog, presenting: workoutToMove) { workout in
-            ForEach(phases.filter { $0.id != workout.phase?.id }) { phase in
-                Button("Move to \(phase.name)") {
-                    moveWorkout(workout, to: phase)
-                }
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: { workout in
-            Text("Choose a phase for '\(workout.name)'.")
+            CreateWorkoutView(workoutPlan: plan, preselectedPhaseId: createWorkoutPhaseId)
         }
         .alert("Delete Workout", isPresented: $showingDeleteConfirmation, presenting: workoutToDelete) { workout in
             Button("Cancel", role: .cancel) { }
@@ -216,51 +210,25 @@ struct WorkoutPlanDetailView: View {
         } message: { workout in
             Text("Are you sure you want to delete '\(workout.name)'? All exercises in this workout will be permanently deleted. This cannot be undone.")
         }
-        .alert(phasePromptTitle, isPresented: $showingPhasePrompt) {
-            TextField("Phase Name", text: $phaseNameInput)
+        .alert("Delete Phase", isPresented: $showingDeletePhaseConfirmation, presenting: phaseToDelete) { phase in
             Button("Cancel", role: .cancel) { }
-            Button(phasePromptConfirmLabel) {
-                handlePhasePrompt()
+            Button("Delete", role: .destructive) {
+                deletePhase(phase)
             }
-            .disabled(phaseNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        } message: {
-            Text(phasePromptMessage)
+        } message: { phase in
+            Text("Deleting '\(phase.name)' will remove all workouts inside it. This cannot be undone.")
         }
-        .onAppear {
-            syncSelectedPhase()
+        .navigationDestination(isPresented: $showingPhasePrompt) {
+            PhasePromptView(
+                title: phasePromptTitle,
+                message: phasePromptMessage,
+                confirmLabel: phasePromptConfirmLabel,
+                phaseName: $phaseNameInput,
+                onConfirm: {
+                    handlePhasePrompt()
+                }
+            )
         }
-        .onChange(of: phases.count) { _, _ in
-            syncSelectedPhase()
-        }
-        .onChange(of: selectedPhaseId) { _, newValue in
-            updateActivePhase(to: newValue)
-        }
-    }
-
-    private var activePhase: PlanPhase? {
-        guard !phases.isEmpty else { return nil }
-        if let selectedPhaseId, let match = phases.first(where: { $0.id == selectedPhaseId }) {
-            return match
-        }
-        return DataHelpers.activePhase(for: plan, in: modelContext)
-    }
-
-    private var visibleWorkouts: [Workout] {
-        if let phase = activePhase {
-            return workouts
-                .filter { $0.phase?.id == phase.id }
-                .sorted(by: { $0.orderIndex < $1.orderIndex })
-        }
-        return workouts
-            .filter { $0.phase == nil }
-            .sorted(by: { $0.orderIndex < $1.orderIndex })
-    }
-
-    private var workoutsHeaderTitle: String {
-        if let phaseName = activePhase?.name {
-            return "Workouts • \(phaseName)"
-        }
-        return "Workouts"
     }
 
     private var phasePromptTitle: String {
@@ -280,9 +248,16 @@ struct WorkoutPlanDetailView: View {
         phasePromptMode == .enable ? "Enable" : "Add"
     }
 
-    private func deleteWorkouts(at offsets: IndexSet) {
+    private func deleteWorkouts(at offsets: IndexSet, in phase: PlanPhase?) {
         guard let index = offsets.first else { return }
-        workoutToDelete = visibleWorkouts[index]
+        let source: [Workout]
+        if let phase {
+            source = workouts(in: phase)
+        } else {
+            source = workouts.sorted(by: { $0.orderIndex < $1.orderIndex })
+        }
+        guard source.indices.contains(index) else { return }
+        workoutToDelete = source[index]
         showingDeleteConfirmation = true
     }
 
@@ -296,6 +271,11 @@ struct WorkoutPlanDetailView: View {
         } catch {
             print("Error deleting workout: \(error)")
         }
+    }
+
+    private func showCreateWorkout() {
+        createWorkoutPhaseId = nil
+        showingCreateWorkout = true
     }
 
     private func showPhasePrompt(_ mode: PhasePromptMode) {
@@ -335,8 +315,6 @@ struct WorkoutPlanDetailView: View {
             workout.orderIndex = index
         }
 
-        selectedPhaseId = newPhase.id
-
         do {
             try modelContext.save()
         } catch {
@@ -360,25 +338,9 @@ struct WorkoutPlanDetailView: View {
         }
     }
 
-    private func syncSelectedPhase() {
-        guard !phases.isEmpty else {
-            selectedPhaseId = nil
-            return
-        }
-        if let selectedPhaseId, phases.contains(where: { $0.id == selectedPhaseId }) {
-            return
-        }
-        if let activePhase = DataHelpers.activePhase(for: plan, in: modelContext) {
-            selectedPhaseId = activePhase.id
-        }
-    }
-
-    private func updateActivePhase(to phaseId: UUID?) {
-        guard let phaseId,
-              let selected = phases.first(where: { $0.id == phaseId }) else { return }
-
-        for phase in phases {
-            phase.isActive = (phase.id == selected.id)
+    private func setActivePhase(_ phase: PlanPhase) {
+        for item in phases {
+            item.isActive = (item.id == phase.id)
         }
 
         do {
@@ -388,21 +350,31 @@ struct WorkoutPlanDetailView: View {
         }
     }
 
-    private func moveWorkout(_ workout: Workout, to phase: PlanPhase) {
-        guard workout.phase?.id != phase.id else { return }
+    private func deletePhase(_ phase: PlanPhase) {
+        let wasActive = phase.isActive
+        let remaining = phases.filter { $0.id != phase.id }.sorted(by: { $0.orderIndex < $1.orderIndex })
 
-        let previousPhase = workout.phase
-        let targetCount = workouts.filter { $0.phase?.id == phase.id }.count
-        workout.phase = phase
-        workout.orderIndex = targetCount
+        modelContext.delete(phase)
 
-        reindexWorkouts(in: previousPhase)
+        for (index, item) in remaining.enumerated() {
+            item.orderIndex = index
+        }
+
+        if wasActive, let newActive = remaining.first {
+            newActive.isActive = true
+        }
 
         do {
             try modelContext.save()
         } catch {
-            print("Error moving workout: \(error)")
+            print("Error deleting phase: \(error)")
         }
+    }
+
+    private func workouts(in phase: PlanPhase) -> [Workout] {
+        workouts
+            .filter { $0.phase?.id == phase.id }
+            .sorted(by: { $0.orderIndex < $1.orderIndex })
     }
 
     private func reindexWorkouts(in phase: PlanPhase?) {
@@ -464,6 +436,90 @@ struct WorkoutRowView: View {
             Spacer()
         }
         .padding(.vertical, 4)
+    }
+}
+
+struct PhaseListRowView: View {
+    let phase: PlanPhase
+    let workoutCount: Int
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(phase.name)
+                        .font(.headline)
+                        .foregroundStyle(Color.summitText)
+
+                    if phase.isActive {
+                        Text("Active")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(Color.summitOrange)
+                            )
+                    }
+                }
+
+                Text("\(workoutCount) workout\(workoutCount == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(Color.summitTextSecondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .foregroundStyle(Color.summitTextTertiary)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct PhasePromptView: View {
+    @Environment(\.dismiss) private var dismiss
+    let title: String
+    let message: String
+    let confirmLabel: String
+    @Binding var phaseName: String
+    let onConfirm: () -> Void
+
+    private var canConfirm: Bool {
+        !phaseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Phase Name", text: $phaseName)
+                } header: {
+                    Text("Name")
+                        .textCase(nil)
+                } footer: {
+                    Text(message)
+                }
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(confirmLabel) {
+                        onConfirm()
+                        dismiss()
+                    }
+                    .disabled(!canConfirm)
+                }
+            }
+        }
     }
 }
 

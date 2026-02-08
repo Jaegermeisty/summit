@@ -292,15 +292,22 @@ struct DataHelpers {
         phase: PlanPhase?
     ) -> [Workout] {
         let planId = plan.id
-        let descriptor = FetchDescriptor<Workout>(
-            predicate: #Predicate<Workout> { workout in
-                if let phaseId = phase?.id {
-                    return workout.workoutPlan?.id == planId && workout.phase?.id == phaseId
-                }
-                return workout.workoutPlan?.id == planId
-            },
-            sortBy: [SortDescriptor(\Workout.orderIndex, order: .forward)]
-        )
+        let descriptor: FetchDescriptor<Workout>
+        if let phaseId = phase?.id {
+            descriptor = FetchDescriptor<Workout>(
+                predicate: #Predicate<Workout> { workout in
+                    workout.workoutPlan?.id == planId && workout.phase?.id == phaseId
+                },
+                sortBy: [SortDescriptor(\Workout.orderIndex, order: .forward)]
+            )
+        } else {
+            descriptor = FetchDescriptor<Workout>(
+                predicate: #Predicate<Workout> { workout in
+                    workout.workoutPlan?.id == planId
+                },
+                sortBy: [SortDescriptor(\Workout.orderIndex, order: .forward)]
+            )
+        }
 
         do {
             return try context.fetch(descriptor)

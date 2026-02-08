@@ -13,6 +13,7 @@ struct CreateWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
 
     let workoutPlan: WorkoutPlan
+    let preselectedPhaseId: UUID?
     @Query private var existingWorkouts: [Workout]
     @Query private var phases: [PlanPhase]
 
@@ -20,8 +21,9 @@ struct CreateWorkoutView: View {
     @State private var workoutNotes: String = ""
     @State private var selectedPhaseId: UUID?
 
-    init(workoutPlan: WorkoutPlan) {
+    init(workoutPlan: WorkoutPlan, preselectedPhaseId: UUID? = nil) {
         self.workoutPlan = workoutPlan
+        self.preselectedPhaseId = preselectedPhaseId
         let planId = workoutPlan.id
         _existingWorkouts = Query(
             filter: #Predicate<Workout> { workout in
@@ -73,12 +75,24 @@ struct CreateWorkoutView: View {
 
                 if !phases.isEmpty {
                     Section {
-                        Picker("Phase", selection: $selectedPhaseId) {
-                            ForEach(phases) { phase in
-                                Text(phase.name).tag(Optional(phase.id))
+                        if isPhaseLocked, let phaseName = selectedPhase?.name {
+                            HStack {
+                                Text("Phase")
+                                    .foregroundStyle(Color.summitTextSecondary)
+
+                                Spacer()
+
+                                Text(phaseName)
+                                    .foregroundStyle(Color.summitText)
                             }
+                        } else {
+                            Picker("Phase", selection: $selectedPhaseId) {
+                                ForEach(phases) { phase in
+                                    Text(phase.name).tag(Optional(phase.id))
+                                }
+                            }
+                            .pickerStyle(.menu)
                         }
-                        .pickerStyle(.menu)
                     } header: {
                         Text("Phase")
                             .textCase(nil)
@@ -142,8 +156,12 @@ struct CreateWorkoutView: View {
             }
         }
         .onAppear {
-            if selectedPhaseId == nil, let activePhase = DataHelpers.activePhase(for: workoutPlan, in: modelContext) {
-                selectedPhaseId = activePhase.id
+            if selectedPhaseId == nil {
+                if let preselectedPhaseId {
+                    selectedPhaseId = preselectedPhaseId
+                } else if let activePhase = DataHelpers.activePhase(for: workoutPlan, in: modelContext) {
+                    selectedPhaseId = activePhase.id
+                }
             }
         }
     }
@@ -184,6 +202,10 @@ struct CreateWorkoutView: View {
             return DataHelpers.workouts(for: workoutPlan, in: modelContext, phase: phase).count
         }
         return existingWorkouts.count
+    }
+
+    private var isPhaseLocked: Bool {
+        preselectedPhaseId != nil
     }
 
     private var positionFooterText: String {
