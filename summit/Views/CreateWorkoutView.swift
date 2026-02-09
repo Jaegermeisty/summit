@@ -27,12 +27,12 @@ struct CreateWorkoutView: View {
         let planId = workoutPlan.id
         _existingWorkouts = Query(
             filter: #Predicate<Workout> { workout in
-                workout.workoutPlan?.id == planId
+                workout.planId == planId
             }
         )
         _phases = Query(
             filter: #Predicate<PlanPhase> { phase in
-                phase.workoutPlan?.id == planId
+                phase.planId == planId
             },
             sort: \PlanPhase.orderIndex,
             order: .forward
@@ -175,8 +175,8 @@ struct CreateWorkoutView: View {
             name: trimmedName,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
             orderIndex: workoutCount,
-            workoutPlan: workoutPlan,
-            phase: phase
+            planId: workoutPlan.id,
+            phaseId: phase?.id
         )
 
         modelContext.insert(newWorkout)

@@ -51,7 +51,7 @@ struct CreateExerciseView: View {
         let workoutId = workout.id
         _existingExercises = Query(
             filter: #Predicate<Exercise> { exercise in
-                exercise.workout?.id == workoutId
+                exercise.workoutId == workoutId
             }
         )
     }

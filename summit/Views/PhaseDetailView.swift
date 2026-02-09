@@ -13,41 +13,17 @@ struct PhaseDetailView: View {
     @Bindable var phase: PlanPhase
     let plan: WorkoutPlan
 
-    @Query private var workouts: [Workout]
-    @Query private var allWorkouts: [Workout]
-    @Query private var phases: [PlanPhase]
+    // Use @State + FetchDescriptor instead of @Query to avoid
+    // SwiftData observation loops that freeze the UI on navigation.
+    @State private var workouts: [Workout] = []
+    @State private var allWorkouts: [Workout] = []
+    @State private var phases: [PlanPhase] = []
 
     @State private var showingCreateWorkout = false
     @State private var workoutToDelete: Workout?
     @State private var showingDeleteConfirmation = false
     @State private var workoutToMove: Workout?
     @State private var showingMoveDialog = false
-
-    init(phase: PlanPhase, plan: WorkoutPlan) {
-        _phase = Bindable(wrappedValue: phase)
-        self.plan = plan
-        let phaseId = phase.id
-        let planId = plan.id
-        _workouts = Query(
-            filter: #Predicate<Workout> { workout in
-                workout.phase?.id == phaseId
-            },
-            sort: \Workout.orderIndex,
-            order: .forward
-        )
-        _allWorkouts = Query(
-            filter: #Predicate<Workout> { workout in
-                workout.workoutPlan?.id == planId
-            }
-        )
-        _phases = Query(
-            filter: #Predicate<PlanPhase> { item in
-                item.workoutPlan?.id == planId
-            },
-            sort: \PlanPhase.orderIndex,
-            order: .forward
-        )
-    }
 
     var body: some View {
         List {
@@ -111,7 +87,7 @@ struct PhaseDetailView: View {
                 } else {
                     ForEach(workouts) { workout in
                         NavigationLink(destination: WorkoutDetailView(workout: workout)) {
-                            WorkoutRowView(workout: workout)
+                            WorkoutRowView(workout: workout, exerciseCount: exerciseCount(for: workout))
                         }
                         .listRowBackground(Color.summitCard)
                         .contextMenu {
@@ -156,7 +132,7 @@ struct PhaseDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingCreateWorkout) {
+        .sheet(isPresented: $showingCreateWorkout, onDismiss: { refreshData() }) {
             CreateWorkoutView(workoutPlan: plan, preselectedPhaseId: phase.id)
         }
         .confirmationDialog("Move Workout", isPresented: $showingMoveDialog, presenting: workoutToMove) { workout in
@@ -177,7 +153,43 @@ struct PhaseDetailView: View {
         } message: { workout in
             Text("Are you sure you want to delete '\(workout.name)'? All exercises in this workout will be permanently deleted. This cannot be undone.")
         }
+        .onAppear {
+            refreshData()
+        }
     }
+
+    // MARK: - Data Loading
+
+    private func refreshData() {
+        let phaseId = phase.id
+        let planId = plan.id
+
+        let workoutDescriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate<Workout> { $0.phaseId == phaseId },
+            sortBy: [SortDescriptor(\Workout.orderIndex, order: .forward)]
+        )
+        let allWorkoutDescriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate<Workout> { $0.planId == planId }
+        )
+        let phaseDescriptor = FetchDescriptor<PlanPhase>(
+            predicate: #Predicate<PlanPhase> { $0.planId == planId },
+            sortBy: [SortDescriptor(\PlanPhase.orderIndex, order: .forward)]
+        )
+
+        workouts = (try? modelContext.fetch(workoutDescriptor)) ?? []
+        allWorkouts = (try? modelContext.fetch(allWorkoutDescriptor)) ?? []
+        phases = (try? modelContext.fetch(phaseDescriptor)) ?? []
+    }
+
+    private func exerciseCount(for workout: Workout) -> Int {
+        let workoutId = workout.id
+        let descriptor = FetchDescriptor<Exercise>(
+            predicate: #Predicate<Exercise> { $0.workoutId == workoutId }
+        )
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
+    }
+
+    // MARK: - Actions
 
     private func deleteWorkouts(at offsets: IndexSet) {
         guard let index = offsets.first, workouts.indices.contains(index) else { return }
@@ -187,40 +199,34 @@ struct PhaseDetailView: View {
 
     private func deleteWorkout(_ workout: Workout) {
         modelContext.delete(workout)
-        reindexWorkouts()
 
         do {
             try modelContext.save()
+            refreshData()
         } catch {
             print("Error deleting workout: \(error)")
         }
     }
 
     private func moveWorkout(_ workout: Workout, to targetPhase: PlanPhase) {
-        guard workout.phase?.id != targetPhase.id else { return }
+        guard workout.phaseId != targetPhase.id else { return }
 
-        let targetCount = workoutsForPhase(targetPhase).count
-        workout.phase = targetPhase
+        let targetId = targetPhase.id
+        let targetCount = allWorkouts.filter { $0.phaseId == targetId }.count
+        workout.phaseId = targetPhase.id
         workout.orderIndex = targetCount
 
-        reindexWorkouts()
+        // Reindex current phase
+        let remaining = workouts.filter { $0.id != workout.id }
+        for (index, w) in remaining.enumerated() {
+            w.orderIndex = index
+        }
 
         do {
             try modelContext.save()
+            refreshData()
         } catch {
             print("Error moving workout: \(error)")
-        }
-    }
-
-    private func workoutsForPhase(_ targetPhase: PlanPhase) -> [Workout] {
-        allWorkouts
-            .filter { $0.phase?.id == targetPhase.id }
-            .sorted(by: { $0.orderIndex < $1.orderIndex })
-    }
-
-    private func reindexWorkouts() {
-        for (index, workout) in workouts.enumerated() {
-            workout.orderIndex = index
         }
     }
 
@@ -231,6 +237,7 @@ struct PhaseDetailView: View {
 
         do {
             try modelContext.save()
+            refreshData()
         } catch {
             print("Error setting active phase: \(error)")
         }

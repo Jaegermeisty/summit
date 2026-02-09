@@ -76,7 +76,7 @@ extension ModelContainer {
                 name: "Phase 1",
                 orderIndex: 0,
                 isActive: true,
-                workoutPlan: plan
+                planId: plan.id
             )
             context.insert(phaseOne)
             
@@ -84,8 +84,8 @@ extension ModelContainer {
             let pushDay = Workout(
                 name: "Push Day",
                 orderIndex: 0,
-                workoutPlan: plan,
-                phase: phaseOne
+                planId: plan.id,
+                phaseId: phaseOne.id
             )
             context.insert(pushDay)
             
@@ -122,8 +122,8 @@ extension ModelContainer {
             let pullDay = Workout(
                 name: "Pull Day",
                 orderIndex: 1,
-                workoutPlan: plan,
-                phase: phaseOne
+                planId: plan.id,
+                phaseId: phaseOne.id
             )
             context.insert(pullDay)
 

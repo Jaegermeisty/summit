@@ -13,7 +13,7 @@ Summit is a simple, fast workout tracker built around **plans** and an **active 
 5. Log sets/reps/weight
 
 The app should make it effortless to train from the **active plan**:
-- On launch, the home screen should surface **“Start Next Workout”** based on the last completed session.
+- On launch, the home screen should surface **"Start Next Workout"** based on the last completed session.
 - Users can still manually pick a different workout if they want to skip or change the order.
 - Analytics should support **global exercise history** across all plans (e.g., Bench Press progress continues even after switching plans).
 - During a workout, show **last performance for this specific workout day** (same exercise template), not global history.
@@ -21,15 +21,16 @@ The app should make it effortless to train from the **active plan**:
 
 ## Current Implementation (What Exists Today)
 
-- SwiftData models for plans, workouts, exercises, sessions, logs, and body weight.
+- SwiftData models for plans, phases, workouts, exercises, sessions, logs, and body weight.
 - Shared and preview model containers with sample data.
 - Canonical exercise catalog with case-insensitive matching and suggestions.
 - Auto-fill target weight from last known template/log (when creating exercises).
-- Active plan card on Home with “Start Workout”.
+- Active plan card on Home with "Start Workout".
 - Session flow with per-set logging and last performance per workout/day.
 - History list (last 5 completed sessions) with edit capability.
 - Session completion toast on finish.
 - Phases (blocks) for plans, with active phase selection and phase-aware next workout.
+- Tab bar navigation (Home + Analytics tabs).
 - Analytics screen:
   - Exercise progress (1RM) over time
   - Plan strength score and volume over time
@@ -56,8 +57,9 @@ Foundation
 - [x] Add exercise creation UI
 - [x] Add exercise editing UI
 - [x] Active plan selection (single active plan)
-- [x] Home screen “Start Next Workout”
+- [x] Home screen "Start Next Workout"
 - [x] Plan phases (blocks) + active phase selection
+- [x] Tab bar navigation (Home + Analytics)
 
 Logging
 - [x] Start/continue workout session flow
@@ -89,31 +91,37 @@ Monetization
 ## Model Files
 
 ### Core Models
-- `WorkoutPlan.swift` — top-level program container (includes `isActive`)
-- `Workout.swift` — workout day within a plan
-- `ExerciseDefinition.swift` — canonical exercise catalog entry (case-insensitive unique)
-- `Exercise.swift` — exercise template within a workout
-- `WorkoutSession.swift` — completed workout instance (historical record)
-- `ExerciseLog.swift` — logged exercise data (weight + reps per set)
-- `BodyWeightLog.swift` — body weight tracking over time
+- `WorkoutPlan.swift` -- top-level program container (includes `isActive`)
+- `PlanPhase.swift` -- phase/block within a plan (includes `isActive`, linked via `planId`)
+- `Workout.swift` -- workout day within a plan (linked via `planId`, optionally `phaseId`)
+- `ExerciseDefinition.swift` -- canonical exercise catalog entry (case-insensitive unique)
+- `Exercise.swift` -- exercise template within a workout (has `workoutId` for queries + `@Relationship` for cascade delete)
+- `WorkoutSession.swift` -- completed workout instance (historical record)
+- `ExerciseLog.swift` -- logged exercise data (weight + reps per set, has `sessionId` for queries + `@Relationship` for cascade delete)
+- `BodyWeightLog.swift` -- body weight tracking over time
 
 ### Utilities
-- `ModelContainer+Extensions.swift` — shared + preview SwiftData containers
-- `DataHelpers.swift` — helper queries (active plan, next workout, history)
+- `ModelContainer+Extensions.swift` -- shared + preview SwiftData containers
+- `DataHelpers.swift` -- helper queries (active plan, next workout, history)
 
 ## Data Model Relationships
 
 ```
-WorkoutPlan (1) ──→ (many) PlanPhase ──→ (many) Workout
-   └─────────────→ (many) Workout (when phases are disabled)
-                     └──→ (many) Exercise ──→ ExerciseDefinition
+WorkoutPlan
+   +-- (many) PlanPhase     [linked by PlanPhase.planId]
+   +-- (many) Workout       [linked by Workout.planId]
+                                  +-- Workout.phaseId -> PlanPhase (optional)
+                                  +-- (many) Exercise [@Relationship + Exercise.workoutId]
+                                        +-- ExerciseDefinition
 
-WorkoutSession ──references──→ Workout (template)
-    │
-    └──→ (many) ExerciseLog ──→ ExerciseDefinition
+WorkoutSession --references--> Workout (by template ID)
+    +-- (many) ExerciseLog [@Relationship + ExerciseLog.sessionId]
+          +-- ExerciseDefinition
 
 BodyWeightLog (independent)
 ```
+
+**IMPORTANT:** WorkoutPlan, PlanPhase, and Workout are linked by plain UUID fields (NOT `@Relationship`). This is intentional -- see "SwiftData Known Issues" in INSTRUCTIONS.md. Exercise and ExerciseLog have both a plain UUID field (for query predicates) AND a `@Relationship` (for cascade delete).
 
 ## Storage
 
@@ -127,3 +135,5 @@ The app currently uses **local SwiftData persistence** via `ModelContainer.share
 - `ExerciseLog` references `ExerciseDefinition` for consistent analytics across plans.
 - `normalizedName` is used to match exercises ignoring case and extra whitespace.
 - `orderIndex` fields maintain stable ordering for workouts and exercises.
+- **Never use relationship traversal in `#Predicate`** (e.g., `$0.workout?.id`). Always use plain UUID fields (e.g., `$0.workoutId`). See INSTRUCTIONS.md for details.
+- **Avoid `@Query` in views pushed by NavigationLink.** Use `FetchDescriptor` + `.onAppear` instead. See INSTRUCTIONS.md for details.

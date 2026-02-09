@@ -17,6 +17,7 @@ final class ExerciseLog {
     var notes: String? // Optional notes for this specific session
     var orderIndex: Int // For maintaining exercise order in the workout
 
+    var sessionId: UUID? // Plain UUID for queries (avoids relationship traversal in predicates)
     var session: WorkoutSession?
 
     init(
@@ -34,6 +35,7 @@ final class ExerciseLog {
         self.reps = reps
         self.notes = notes
         self.orderIndex = orderIndex
+        self.sessionId = session?.id
         self.session = session
     }
 

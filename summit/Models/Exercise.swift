@@ -19,9 +19,10 @@ final class Exercise {
     var numberOfSets: Int
     var notes: String? // Persistent notes like "rest-pause on last set"
     var orderIndex: Int // For ordering exercises within a workout
-    
+
+    var workoutId: UUID? // Plain UUID for queries (avoids relationship traversal in predicates)
     var workout: Workout?
-    
+
     init(
         id: UUID = UUID(),
         definition: ExerciseDefinition,
@@ -43,6 +44,7 @@ final class Exercise {
         self.numberOfSets = numberOfSets
         self.notes = notes
         self.orderIndex = orderIndex
+        self.workoutId = workout?.id
         self.workout = workout
     }
 

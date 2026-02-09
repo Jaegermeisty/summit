@@ -22,7 +22,7 @@ struct WorkoutDetailView: View {
         let workoutId = workout.id
         _exercises = Query(
             filter: #Predicate<Exercise> { exercise in
-                exercise.workout?.id == workoutId
+                exercise.workoutId == workoutId
             },
             sort: \Exercise.orderIndex,
             order: .forward

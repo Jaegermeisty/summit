@@ -5,7 +5,7 @@ import SwiftData
 struct summitApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
         }
         .modelContainer(ModelContainer.shared)
     }

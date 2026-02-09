@@ -13,17 +13,28 @@ private enum PhasePromptMode {
     case add
 }
 
+private enum ActiveSheet: Identifiable {
+    case createWorkout
+    case phasePrompt
+
+    var id: String {
+        switch self {
+        case .createWorkout: return "createWorkout"
+        case .phasePrompt: return "phasePrompt"
+        }
+    }
+}
+
 struct WorkoutPlanDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var plan: WorkoutPlan
     @Query private var workouts: [Workout]
     @Query private var phases: [PlanPhase]
 
-    @State private var showingCreateWorkout = false
+    @State private var activeSheet: ActiveSheet?
     @State private var createWorkoutPhaseId: UUID?
     @State private var workoutToDelete: Workout?
     @State private var showingDeleteConfirmation = false
-    @State private var showingPhasePrompt = false
     @State private var phasePromptMode: PhasePromptMode = .enable
     @State private var phaseNameInput: String = ""
     @State private var phaseToDelete: PlanPhase?
@@ -34,14 +45,14 @@ struct WorkoutPlanDetailView: View {
         let planId = plan.id
         _workouts = Query(
             filter: #Predicate<Workout> { workout in
-                workout.workoutPlan?.id == planId
+                workout.planId == planId
             },
             sort: \Workout.orderIndex,
             order: .forward
         )
         _phases = Query(
             filter: #Predicate<PlanPhase> { phase in
-                phase.workoutPlan?.id == planId
+                phase.planId == planId
             },
             sort: \PlanPhase.orderIndex,
             order: .forward
@@ -115,7 +126,7 @@ struct WorkoutPlanDetailView: View {
                     } else {
                         ForEach(workouts) { workout in
                             NavigationLink(destination: WorkoutDetailView(workout: workout)) {
-                                WorkoutRowView(workout: workout)
+                                WorkoutRowView(workout: workout, exerciseCount: workout.exercises.count)
                             }
                             .listRowBackground(Color.summitCard)
                         }
@@ -141,7 +152,7 @@ struct WorkoutPlanDetailView: View {
                         NavigationLink {
                             PhaseDetailView(phase: phase, plan: plan)
                         } label: {
-                            PhaseListRowView(phase: phase, workoutCount: workouts(in: phase).count)
+                            PhaseListRowView(phase: phase, workoutCount: workouts.filter { $0.phaseId == phase.id }.count)
                         }
                         .listRowBackground(Color.summitCard)
                         .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -199,8 +210,23 @@ struct WorkoutPlanDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingCreateWorkout) {
-            CreateWorkoutView(workoutPlan: plan, preselectedPhaseId: createWorkoutPhaseId)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .createWorkout:
+                CreateWorkoutView(workoutPlan: plan, preselectedPhaseId: createWorkoutPhaseId)
+            case .phasePrompt:
+                NavigationStack {
+                    PhasePromptView(
+                        title: phasePromptTitle,
+                        message: phasePromptMessage,
+                        confirmLabel: phasePromptConfirmLabel,
+                        phaseName: $phaseNameInput,
+                        onConfirm: {
+                            handlePhasePrompt()
+                        }
+                    )
+                }
+            }
         }
         .alert("Delete Workout", isPresented: $showingDeleteConfirmation, presenting: workoutToDelete) { workout in
             Button("Cancel", role: .cancel) { }
@@ -217,17 +243,6 @@ struct WorkoutPlanDetailView: View {
             }
         } message: { phase in
             Text("Deleting '\(phase.name)' will remove all workouts inside it. This cannot be undone.")
-        }
-        .navigationDestination(isPresented: $showingPhasePrompt) {
-            PhasePromptView(
-                title: phasePromptTitle,
-                message: phasePromptMessage,
-                confirmLabel: phasePromptConfirmLabel,
-                phaseName: $phaseNameInput,
-                onConfirm: {
-                    handlePhasePrompt()
-                }
-            )
         }
     }
 
@@ -262,11 +277,11 @@ struct WorkoutPlanDetailView: View {
     }
 
     private func deleteWorkout(_ workout: Workout) {
-        let phase = workout.phase
+        let phaseId = workout.phaseId
         modelContext.delete(workout)
 
         do {
-            reindexWorkouts(in: phase)
+            reindexWorkouts(inPhaseId: phaseId)
             try modelContext.save()
         } catch {
             print("Error deleting workout: \(error)")
@@ -275,7 +290,7 @@ struct WorkoutPlanDetailView: View {
 
     private func showCreateWorkout() {
         createWorkoutPhaseId = nil
-        showingCreateWorkout = true
+        activeSheet = .createWorkout
     }
 
     private func showPhasePrompt(_ mode: PhasePromptMode) {
@@ -285,7 +300,7 @@ struct WorkoutPlanDetailView: View {
         } else {
             phaseNameInput = "Phase \(phases.count + 1)"
         }
-        showingPhasePrompt = true
+        activeSheet = .phasePrompt
     }
 
     private func handlePhasePrompt() {
@@ -305,13 +320,13 @@ struct WorkoutPlanDetailView: View {
             name: name,
             orderIndex: 0,
             isActive: true,
-            workoutPlan: plan
+            planId: plan.id
         )
         modelContext.insert(newPhase)
 
         let planWorkouts = workouts.sorted(by: { $0.orderIndex < $1.orderIndex })
         for (index, workout) in planWorkouts.enumerated() {
-            workout.phase = newPhase
+            workout.phaseId = newPhase.id
             workout.orderIndex = index
         }
 
@@ -327,7 +342,7 @@ struct WorkoutPlanDetailView: View {
             name: name,
             orderIndex: phases.count,
             isActive: false,
-            workoutPlan: plan
+            planId: plan.id
         )
         modelContext.insert(newPhase)
 
@@ -354,6 +369,10 @@ struct WorkoutPlanDetailView: View {
         let wasActive = phase.isActive
         let remaining = phases.filter { $0.id != phase.id }.sorted(by: { $0.orderIndex < $1.orderIndex })
 
+        // Manually delete workouts in this phase
+        let phaseWorkouts = workouts.filter { $0.phaseId == phase.id }
+        for w in phaseWorkouts { modelContext.delete(w) }
+
         modelContext.delete(phase)
 
         for (index, item) in remaining.enumerated() {
@@ -373,13 +392,13 @@ struct WorkoutPlanDetailView: View {
 
     private func workouts(in phase: PlanPhase) -> [Workout] {
         workouts
-            .filter { $0.phase?.id == phase.id }
+            .filter { $0.phaseId == phase.id }
             .sorted(by: { $0.orderIndex < $1.orderIndex })
     }
 
-    private func reindexWorkouts(in phase: PlanPhase?) {
+    private func reindexWorkouts(inPhaseId phaseId: UUID?) {
         let filtered = workouts
-            .filter { $0.phase?.id == phase?.id }
+            .filter { $0.phaseId == phaseId }
             .sorted(by: { $0.orderIndex < $1.orderIndex })
 
         for (index, workout) in filtered.enumerated() {
@@ -389,18 +408,8 @@ struct WorkoutPlanDetailView: View {
 }
 
 struct WorkoutRowView: View {
-    @Bindable var workout: Workout
-    @Query private var exercises: [Exercise]
-
-    init(workout: Workout) {
-        _workout = Bindable(wrappedValue: workout)
-        let workoutId = workout.id
-        _exercises = Query(
-            filter: #Predicate<Exercise> { exercise in
-                exercise.workout?.id == workoutId
-            }
-        )
-    }
+    let workout: Workout
+    let exerciseCount: Int
 
     var body: some View {
         HStack {
@@ -427,7 +436,7 @@ struct WorkoutRowView: View {
                     Image(systemName: "dumbbell")
                         .font(.caption2)
 
-                    Text("\(exercises.count) exercise\(exercises.count == 1 ? "" : "s")")
+                    Text("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
                         .font(.caption)
                 }
                 .foregroundStyle(Color.summitTextSecondary)
@@ -492,32 +501,30 @@ struct PhasePromptView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Phase Name", text: $phaseName)
-                } header: {
-                    Text("Name")
-                        .textCase(nil)
-                } footer: {
-                    Text(message)
+        Form {
+            Section {
+                TextField("Phase Name", text: $phaseName)
+            } header: {
+                Text("Name")
+                    .textCase(nil)
+            } footer: {
+                Text(message)
+            }
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    dismiss()
                 }
             }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(confirmLabel) {
+                    onConfirm()
+                    dismiss()
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(confirmLabel) {
-                        onConfirm()
-                        dismiss()
-                    }
-                    .disabled(!canConfirm)
-                }
+                .disabled(!canConfirm)
             }
         }
     }
@@ -531,9 +538,9 @@ struct PhasePromptView: View {
                 planDescription: "Classic 3-day split"
             )
 
-            let pushDay = Workout(name: "Push Day", orderIndex: 0, workoutPlan: plan)
-            let pullDay = Workout(name: "Pull Day", orderIndex: 1, workoutPlan: plan)
-            let legDay = Workout(name: "Leg Day", orderIndex: 2, workoutPlan: plan)
+            let pushDay = Workout(name: "Push Day", orderIndex: 0, planId: plan.id)
+            let pullDay = Workout(name: "Pull Day", orderIndex: 1, planId: plan.id)
+            let legDay = Workout(name: "Leg Day", orderIndex: 2, planId: plan.id)
 
             _ = pushDay
             _ = pullDay

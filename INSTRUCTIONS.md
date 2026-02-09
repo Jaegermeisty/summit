@@ -6,7 +6,7 @@
 
 ---
 
-## 📱 Project Overview
+## Project Overview
 
 Summit is a minimalist iOS gym tracking application built with SwiftUI and SwiftData. Unlike traditional gym apps with pre-populated exercise libraries and social features, Summit empowers users to create fully custom workout plans tailored to their exact needs.
 
@@ -14,7 +14,7 @@ Summit is a minimalist iOS gym tracking application built with SwiftUI and Swift
 
 ---
 
-## 🎯 Vision & Philosophy
+## Vision & Philosophy
 
 ### Why No Pre-Populated Exercise Library?
 
@@ -36,7 +36,7 @@ While there's no built-in library, users will eventually be able to:
 
 ---
 
-## 👥 Target Users
+## Target Users
 
 **Primary:** Beginners and intermediate lifters (6 months - 3 years experience)
 
@@ -50,26 +50,28 @@ While there's no built-in library, users will eventually be able to:
 
 ---
 
-## 🎨 Design Principles
+## Design Principles
 
 ### Visual Identity
 
 **Color Scheme:**
-- **Primary Background:** Charcoal / dark grey (always dark mode)
-- **Accent Color:** Orange
-- **Reasoning:** Creates a serious, focused gym aesthetic. Orange pops against charcoal and conveys energy.
-
-**Current UI feels "boring and generic"** - needs to maintain clean Apple-style foundation but with character. Think: **Apple Watch workout app meets minimalist gym vibes.**
+- **Primary Background:** Charcoal / dark grey (`#1C1C1E`) - always dark mode
+- **Card Background:** `#2C2C2E` (standard), `#3A3A3C` (elevated)
+- **Accent Color:** Orange (`#FF9500`)
+- **Text:** White primary, `#AEAEB2` secondary, `#8E8E93` tertiary
+- **Success:** Green (`#34C759`)
+- **Destructive:** Red (`#FF3B30`)
 
 **No light mode.** Summit is a dark-mode-only app. This reinforces the serious, focused atmosphere.
 
 ### Interaction Patterns (Maintain Consistency)
 
-✅ **Swipe-to-delete** → Quick destructive actions (delete exercise, workout, plan)
-✅ **Long-press context menus** → Secondary actions (set as active, choose workout)
-✅ **Sheets/modals** → Creation flows (new plan, workout, exercise)
-✅ **NavigationLinks** → Drill-down navigation (plan → workout → exercise)
-✅ **Empty states with CTAs** → Always show helpful prompts when lists are empty
+- **Swipe-to-delete** -> Quick destructive actions (delete exercise, workout, plan)
+- **Long-press context menus** -> Secondary actions (set as active, choose workout)
+- **Sheets/modals** -> Creation flows (new plan, workout, exercise)
+- **NavigationLinks** -> Drill-down navigation (plan -> workout -> exercise)
+- **Empty states with CTAs** -> Always show helpful prompts when lists are empty
+- **Tab bar** -> Primary navigation between Home and Analytics
 
 ### Typography & Spacing
 
@@ -80,7 +82,7 @@ While there's no built-in library, users will eventually be able to:
 
 ---
 
-## 🏗️ Technical Architecture
+## Technical Architecture
 
 ### Stack
 
@@ -88,56 +90,191 @@ While there's no built-in library, users will eventually be able to:
 **Persistence:** SwiftData (local-first, iCloud sync capable, type-safe)
 **Platform:** iOS only (for now)
 
-**Why SwiftData over Core Data?**
-- Simpler API with less boilerplate
-- Native Swift types (no `@NSManaged`, `NSManagedObject`)
-- Built-in iCloud sync support
-- Future-proof (Apple's recommended path)
+### Navigation Structure
+
+The app uses a **TabView** with two tabs:
+- **Home** (`ContentView`) — Workout plans, active plan card, start workouts
+- **Analytics** (`AnalyticsView`) — Exercise progress charts, plan strength/volume
+
+Each tab has its own **NavigationStack** for drill-down navigation. History is accessible from the Home tab toolbar as a sheet.
+
+**Entry point:** `summitApp.swift` -> `MainTabView` -> `TabView` with Home + Analytics
 
 ### Code Organization
 
 ```
 summit/
-├── Models/           # SwiftData models + helpers
+├── Models/               # SwiftData models + helpers
 │   ├── WorkoutPlan.swift
+│   ├── PlanPhase.swift
 │   ├── Workout.swift
 │   ├── Exercise.swift
+│   ├── ExerciseDefinition.swift
 │   ├── WorkoutSession.swift
 │   ├── ExerciseLog.swift
 │   ├── BodyWeightLog.swift
 │   ├── DataHelpers.swift
 │   └── ModelContainer+Extensions.swift
-├── Views/            # SwiftUI views
-│   ├── ContentView.swift (home screen)
-│   ├── CreateWorkoutPlanView.swift
-│   ├── WorkoutPlanDetailView.swift
-│   ├── CreateWorkoutView.swift
-│   ├── WorkoutDetailView.swift
+├── Views/                # SwiftUI views
+│   ├── AnalyticsView.swift
 │   ├── CreateExerciseView.swift
+│   ├── CreateWorkoutPlanView.swift
+│   ├── CreateWorkoutView.swift
 │   ├── EditExerciseView.swift
-│   └── ActiveWorkoutSessionView.swift
-└── summitApp.swift   # App entry point
+│   ├── HistoryView.swift
+│   ├── PhaseDetailView.swift
+│   ├── WorkoutDetailView.swift
+│   ├── WorkoutPlanDetailView.swift
+│   └── WorkoutSessionView.swift
+├── Theme/
+│   └── Colors.swift      # Summit color palette
+├── ContentView.swift     # Home tab (plans list, active plan card)
+├── MainTabView.swift     # Root TabView (Home + Analytics)
+└── summitApp.swift       # App entry point
 ```
 
 **Philosophy:** Keep it flat and simple. Don't create deep folder hierarchies or premature abstractions.
 
 ---
 
-## 💾 Data Model Decisions
+## Data Model & Relationships
+
+### Model Linking Strategy
+
+**IMPORTANT: Models are linked by plain UUID properties, NOT by SwiftData `@Relationship`.**
+
+The relationship between WorkoutPlan, PlanPhase, and Workout uses plain UUID fields:
+- `Workout.planId: UUID?` — links to WorkoutPlan
+- `Workout.phaseId: UUID?` — links to PlanPhase
+- `PlanPhase.planId: UUID?` — links to WorkoutPlan
+- `Exercise.workoutId: UUID?` — used for `@Query`/`FetchDescriptor` predicates
+- `ExerciseLog.sessionId: UUID?` — used for `@Query`/`FetchDescriptor` predicates
+
+The `Exercise` and `ExerciseLog` models still have `@Relationship` to `Workout` and `WorkoutSession` respectively (for cascade delete), but **all query predicates use the plain UUID fields** to avoid SwiftData observation loops. See the "SwiftData Known Issues" section below for details.
+
+### Relationship Diagram
+
+```
+WorkoutPlan
+   ├── (many) PlanPhase     [linked by PlanPhase.planId]
+   └── (many) Workout       [linked by Workout.planId]
+                                  └── Workout.phaseId -> PlanPhase (optional)
+                                  └── (many) Exercise [relationship + Exercise.workoutId]
+                                        └── ExerciseDefinition
+
+WorkoutSession ──references──> Workout (by template ID)
+    └── (many) ExerciseLog [relationship + ExerciseLog.sessionId]
+          └── ExerciseDefinition
+
+BodyWeightLog (independent)
+```
+
+### Cascade Delete
+
+Since WorkoutPlan -> Workout and WorkoutPlan -> PlanPhase don't use `@Relationship`, cascade deletes are handled **manually** in the delete functions (e.g., `deletePlan()` in `ContentView`, `deletePhase()` in `WorkoutPlanDetailView`).
+
+The Exercise -> Workout relationship still uses `@Relationship(deleteRule: .cascade)` so deleting a Workout automatically deletes its Exercises.
+
+---
+
+## SwiftData Known Issues & Lessons Learned
+
+### CRITICAL: @Query + NavigationLink = Infinite Loop
+
+**This is a known SwiftData/SwiftUI bug confirmed on Apple Developer Forums.**
+
+**The problem:** When a `NavigationLink` pushes a view that contains `@Query` properties with `#Predicate`, SwiftData's observation system can create an infinite re-evaluation loop that freezes the entire UI. The CPU pegs at 100% and the app becomes unresponsive.
+
+**When it happens:**
+- A parent view has `@Query` results displayed in a `ForEach`
+- Each row is a `NavigationLink` to a detail view
+- The detail view has its own `@Query` with a `#Predicate`
+- The more `@Query` properties involved, the worse it gets
+- Relationship traversal in predicates (e.g., `exercise.workout?.id`) makes it much worse
+
+**Our experience:** Adding phases (PlanPhase) to workout plans caused the app to freeze whenever a user tapped on a phase to navigate into `PhaseDetailView`. The view had 3 `@Query` properties, and each `WorkoutRowView` inside it had its own `@Query` — the combination triggered the infinite loop.
+
+### Rules to Follow (Prevent Future Freezes)
+
+1. **NEVER use relationship traversal in `#Predicate`**
+   ```swift
+   // BAD — causes observation tracking on the entire relationship graph
+   #Predicate<Exercise> { $0.workout?.id == workoutId }
+
+   // GOOD — plain UUID comparison, no relationship observation
+   #Predicate<Exercise> { $0.workoutId == workoutId }
+   ```
+   Always add a plain UUID field alongside any relationship and use it in predicates.
+
+2. **Avoid `@Query` in views pushed by NavigationLink**
+   If a detail view (pushed via NavigationLink) needs data, prefer `@State` arrays loaded via `FetchDescriptor` in `.onAppear` instead of `@Query`. This avoids the observation system entirely.
+   ```swift
+   // BAD — @Query in a NavigationLink destination
+   struct DetailView: View {
+       @Query private var items: [Item]  // Can cause infinite loop
+   }
+
+   // GOOD — FetchDescriptor in .onAppear
+   struct DetailView: View {
+       @State private var items: [Item] = []
+
+       var body: some View {
+           List { ... }
+           .onAppear { refreshData() }
+       }
+
+       private func refreshData() {
+           let descriptor = FetchDescriptor<Item>(...)
+           items = (try? modelContext.fetch(descriptor)) ?? []
+       }
+   }
+   ```
+   Call `refreshData()` again after any mutations (add/delete/move).
+
+3. **Don't give row views their own `@Query`**
+   Row views inside a `ForEach` should receive data from their parent, not run their own queries. Each `@Query` adds an observer that fires on every SwiftData change app-wide.
+   ```swift
+   // BAD — N+1 queries, one per row
+   struct WorkoutRow: View {
+       @Query private var exercises: [Exercise]  // Fires for every row
+   }
+
+   // GOOD — parent passes data down
+   struct WorkoutRow: View {
+       let workout: Workout
+       let exerciseCount: Int  // Passed from parent
+   }
+   ```
+
+4. **`@Query` is fine for top-level/root views**
+   The Home screen (`ContentView`) and Analytics tab use `@Query` safely because they are root-level views, not pushed by NavigationLink. `@Query` works well when:
+   - The view is at the root of a NavigationStack
+   - The view is a tab in a TabView
+   - The view is presented as a `.sheet`
+
+5. **Any SwiftData change rebuilds ALL @Query views**
+   Apple has confirmed this behavior: modifying ANY model property (even setting it to the same value) causes EVERY `@Query` in the app to re-fire. Keep `@Query` usage to a minimum and in stable (root) views.
+
+### References
+- Apple Developer Forums thread 751448 (NavigationLink + @Query infinite loop)
+- Apple Developer Forums thread 774561 (SwiftData over-notification confirmed by Apple DTS)
+- Apple Developer Forums thread 727307 (NavigationStack hang with @Query)
+
+---
+
+## Data Model Decisions
 
 ### Why Exercise Names Are Strings (Not References)
 
 **Problem:** If exercise templates are referenced by ID, deleting/renaming a template breaks workout history.
 
-**Solution:** Store exercise names as strings in `ExerciseLog`.
+**Solution:** Store exercise names as strings in `ExerciseLog` (via `ExerciseDefinition`).
 
 **Result:**
 - Your history is permanent and immutable
 - Even if you delete "Bench Press" from your current plan, old sessions still show "Bench Press"
-- Stats can aggregate all "Bench Press" logs across all workouts/plans by name
-- Exercise name auto-suggestions work by querying unique names from logs
-
-**Trade-off:** No global rename (if you change "Bench Press" to "Flat Bench," they're treated as separate exercises). This is acceptable—users rarely rename exercises globally.
+- Stats can aggregate all "Bench Press" logs across all workouts/plans by normalized name
+- Exercise name auto-suggestions work by querying `ExerciseDefinition` entries
 
 ### Why Template IDs + Names Are Stored in WorkoutSession
 
@@ -150,61 +287,43 @@ summit/
 - Sessions from today show "Upper Body"
 - Historically accurate without breaking relationships
 
-### Why Weight Per Set (Not Per Exercise)
+### Why Plain UUIDs Instead of @Relationship for Plan/Phase/Workout
 
-**Problem:** Sometimes you drop weight on the last set, or pyramid up/down.
+**Problem:** SwiftData `@Relationship` with `inverse:` between WorkoutPlan, PlanPhase, and Workout created circular observation chains that froze the UI.
 
-**Solution:** `ExerciseLog.weights` is an array: `[60.0, 60.0, 57.5]` for 3 sets.
+**Solution:** Remove all `@Relationship` between these three models. Use plain UUID properties (`planId`, `phaseId`) for linking and querying. Handle cascade deletes manually.
 
 **Result:**
-- Full flexibility for drop sets, rest-pause, pyramids
-- Accurate historical data (you can see you did 60kg × 8, then 57.5kg × 7)
-- Auto-fill is smarter (suggests exact weights from last session per set)
+- No observation loops between plan/phase/workout
+- Predicates use simple value comparison instead of relationship traversal
+- Manual cascade delete in a few functions (small trade-off for stability)
 
 ---
 
-## 💰 Monetization Strategy
+## Monetization Strategy
 
 ### Two-Tier Model
 
 **Free Tier (Local Only):**
-- ✅ Create unlimited workout plans, workouts, exercises
-- ✅ Log workouts with full functionality
-- ✅ Auto-fill from LAST session only (for convenience)
-- ❌ No workout history beyond "last session"
-- ❌ No progress stats or charts
-- ❌ No iCloud sync
+- Create unlimited workout plans, workouts, exercises
+- Log workouts with full functionality
+- Auto-fill from LAST session only (for convenience)
+- No workout history beyond "last session"
+- No progress stats or charts
+- No iCloud sync
 
 **Paid Tier ($5 USD one-time purchase):**
-- ✅ Full workout history (forever)
-- ✅ Progress stats and charts
-- ✅ Exercise-level analytics (e.g., all "Bench Press" sessions across all plans)
-- ✅ iCloud sync (works across all user's devices)
-- ✅ Sign in with Apple (no custom account system needed)
-
-### Technical Implementation
-
-**Free users:**
-- SwiftData local storage only
-- Store last session per exercise for auto-fill (queries most recent `ExerciseLog` by name)
-- No complex backend needed
-
-**Paid users:**
-- Enable CloudKit sync in SwiftData (one toggle)
-- Store full history locally + iCloud
-- Sign in with Apple handles authentication
-- No server costs for you (iCloud storage is on user's account)
-
-**Storage Impact:**
-- A year of workouts = ~1-2MB (just numbers, dates, text)
-- Negligible for users
-- Zero cost for you
+- Full workout history (forever)
+- Progress stats and charts
+- Exercise-level analytics (e.g., all "Bench Press" sessions across all plans)
+- iCloud sync (works across all user's devices)
+- Sign in with Apple (no custom account system needed)
 
 ---
 
-## 🚀 Feature Roadmap
+## Feature Roadmap
 
-### ✅ Completed (v1.0)
+### Completed
 
 - [x] Workout plan creation with description
 - [x] Workout creation with optional notes
@@ -215,51 +334,38 @@ summit/
 - [x] Active plan management (set active, delete with confirmations)
 - [x] Swipe-to-delete with cascade warnings
 - [x] Empty states with helpful CTAs
+- [x] UI redesign (charcoal + orange dark theme)
+- [x] Exercise name auto-suggestions (via ExerciseDefinition catalog)
+- [x] Workout history view (last 5 completed sessions)
+- [x] Session completion toast
+- [x] Plan phases (blocks) with active phase selection
+- [x] Phase-aware next workout rotation
+- [x] Analytics — exercise 1RM progress chart
+- [x] Analytics — plan strength score + volume charts
+- [x] Tab bar navigation (Home + Analytics)
 
-### 🎯 Priority Features (Next)
+### Next Up
 
-**1. Manual Workout Override**
-- Button next to "Start Workout" → "Choose Different Workout"
-- Allows user to manually select any workout from active plan
-- Useful for skipping ahead or repeating a session
+1. **Paywall** — One-time purchase gating history + analytics
+2. **Plan comparison view** — Side-by-side or overlay charts
+3. **Phase management polish** — Rename phase, multi-select move/copy workouts
+4. **Exercise search/filter in Analytics** — Favorites, search bar
 
-**2. Workout History View (Free + Paid)**
-- List of completed workout sessions by date
-- Tap to view full session details (exercises, weights, reps)
-- Free tier: Only shows last session per workout type
-- Paid tier: Shows all sessions with infinite scroll
+### Features to NEVER Build
 
-**3. Progress Visualization (Paid Only)**
-- Line charts for exercise progression over time
-- 1RM estimates tracked per exercise
-- Volume tracking (total weight lifted)
-- Comparison across workout plans
-
-**4. Body Weight Logging**
-- Quick log interface (date + weight + optional notes)
-- Simple list view
-- Optional chart (paid tier)
-
-**5. Exercise Name Auto-Suggestions**
-- When creating an exercise, show dropdown of previously used names
-- Tap to auto-fill (user can still create new)
-- Links exercises across workouts/plans for stats
-
-### ❌ Features to NEVER Build
-
-- ❌ Social features (sharing workouts, following users, leaderboards)
-- ❌ Rest timers (use notes or iPhone timer)
-- ❌ Supersets/circuits (use notes to document)
-- ❌ AI coaching or workout recommendations
-- ❌ Gamification (streaks, achievements, badges)
-- ❌ Complex periodization tools
-- ❌ Video exercise tutorials
+- Social features (sharing workouts, following users, leaderboards)
+- Rest timers (use notes or iPhone timer)
+- Supersets/circuits (use notes to document)
+- AI coaching or workout recommendations
+- Gamification (streaks, achievements, badges)
+- Complex periodization tools
+- Video exercise tutorials
 
 **Reasoning:** Summit is a logging tool, not a coaching app. Keep it simple.
 
 ---
 
-## 🛠️ Development Guidelines
+## Development Guidelines
 
 ### Code Style
 
@@ -269,66 +375,26 @@ summit/
 - Keep solutions simple and direct
 - Three similar lines of code > premature helper function
 
-**Example (Good):**
-```swift
-plan.isActive = true
-plan2.isActive = false
-plan3.isActive = false
-```
-
-**Example (Over-engineered):**
-```swift
-PlanActivationManager.shared.setActivePlan(plan, deactivatingOthers: [plan2, plan3])
-```
-
 ### Error Handling
 
-**Current approach:** `print("Error: ...")` statements.
+**Current approach:** `print("Error: ...")` statements with `try modelContext.save()`.
 
 **Better approach (implement gradually):**
 - Show alerts to users for critical operations (save failures, deletion errors)
 - Keep print statements for debugging
-- Don't overwhelm users with error details—friendly messages only
-
-**Example:**
-```swift
-do {
-    try modelContext.save()
-} catch {
-    print("Error saving plan: \(error)")
-    showErrorAlert = true
-    errorMessage = "Couldn't save your workout plan. Please try again."
-}
-```
-
-### Commit Messages
-
-**Continue current style:**
-- Clear title summarizing change
-- Detailed body explaining what/why
-- Bullet points for multiple changes
-- Call out breaking changes or migrations
+- Don't overwhelm users with error details -- friendly messages only
 
 ### File Organization
 
 **Keep it simple:**
 - Models folder for data models
 - Views folder for SwiftUI views
+- Theme folder for colors/styling
 - No need for "Helpers", "Utilities", "Services" folders until actually needed
-- Group related views (e.g., all workout-related views) in subfolders only if Views/ gets too crowded
-
-### Testing Strategy
-
-**Current:** Manual testing in simulator/device.
-
-**Future (optional):**
-- Unit tests for DataHelpers functions
-- Preview tests for UI components
-- Keep tests lightweight—this is a small app
 
 ---
 
-## 🎨 UI/UX Patterns to Maintain
+## UI/UX Patterns to Maintain
 
 ### Empty States
 
@@ -338,175 +404,16 @@ do {
 - Description (why it matters)
 - CTA button (how to fix it)
 
-**Example:**
-```swift
-ContentUnavailableView {
-    Label("No Exercises", systemImage: "dumbbell")
-} description: {
-    Text("Add exercises to this workout to get started")
-} actions: {
-    Button("Add Exercise") { ... }
-}
-```
-
 ### Confirmation Dialogs
 
 **For destructive actions (delete plan, delete workout):**
 - Use `.alert()` modifier
 - Clear title: "Delete Workout Plan"
-- Explain consequences: "All workouts and exercises in this plan will be permanently deleted. This cannot be undone."
+- Explain consequences: "All workouts and exercises will be permanently deleted. This cannot be undone."
 - Cancel button (default)
 - Destructive button (red)
 
-**Example:**
-```swift
-.alert("Delete Workout Plan", isPresented: $showingDeleteConfirmation) {
-    Button("Cancel", role: .cancel) { }
-    Button("Delete", role: .destructive) { deletePlan() }
-} message: {
-    Text("All workouts and exercises will be permanently deleted. This cannot be undone.")
-}
-```
-
 ### Notes Fields
-
-**Philosophy:** Let users capture context anywhere.
-
-- Workout plans have `planDescription` (what's the overall goal?)
-- Workouts have `notes` (intensity, focus areas)
-- Exercises have `notes` (technique cues, special instructions)
-- Exercise logs have `notes` (how did it feel today?)
-- Body weight logs have `notes` (cutting, bulking, maintenance)
-
-**Keep these optional** but always available.
-
----
-
-## 📐 Technical Constraints & Future-Proofing
-
-### iCloud Sync (Paid Feature)
-
-**How it works:**
-- SwiftData has built-in CloudKit sync
-- Toggle on: `ModelConfiguration(isStoredInMemoryOnly: false, cloudKitDatabase: .private)`
-- User signs in with Apple ID (already authenticated on device)
-- Data syncs automatically across user's devices
-- **Zero backend code needed**
-- **Zero hosting costs**
-
-**Migration from Free → Paid:**
-1. User purchases Pro
-2. Enable CloudKit sync in ModelConfiguration
-3. Local data automatically uploads to iCloud
-4. Done!
-
-### Workout Rotation Logic
-
-**Current implementation:**
-```swift
-DataHelpers.nextWorkout(in: plan, context: modelContext)
-```
-
-**How it works:**
-1. Get all sessions for this plan (sorted by date, newest first)
-2. Find the last completed workout
-3. Return the next workout in the rotation (wraps around)
-4. If no sessions exist, return first workout
-
-**Future enhancement:**
-- User can manually override with "Choose Different Workout" button
-- This doesn't break the rotation—next time it continues from the manually selected workout
-
-### Exercise Name Matching for Stats
-
-**Current:** Exercise names are strings.
-
-**For stats (paid tier):**
-```swift
-let descriptor = FetchDescriptor<ExerciseLog>(
-    predicate: #Predicate { $0.exerciseName == "Bench Press" }
-)
-let allBenchPressSessions = try context.fetch(descriptor)
-```
-
-**This aggregates:**
-- "Bench Press" from Push Day in Plan A
-- "Bench Press" from Upper Body in Plan B
-- "Bench Press" from Full Body in Plan C
-
-**Auto-suggestions:**
-```swift
-let allExerciseNames = Set(allLogs.map { $0.exerciseName }).sorted()
-// Show in dropdown when creating exercise
-```
-
----
-
-## 🚫 Anti-Patterns to Avoid
-
-### Don't Add Features Preemptively
-
-❌ "Users might want to track cardio, let's add a cardio section"
-✅ Wait until users actually request it
-
-❌ "We should support multiple active plans in case someone wants it"
-✅ Keep one active plan—simpler is better
-
-### Don't Over-Validate
-
-❌ "What if user enters 9999kg? Add validation!"
-✅ Trust users. If they enter nonsense, it's their data.
-
-### Don't Abstract Too Early
-
-❌ Create `ExerciseViewModel`, `WorkoutService`, `PlanRepository`
-✅ Keep data and views simple. SwiftData handles persistence. SwiftUI handles state.
-
-### Don't Add Empty Folders "For Later"
-
-❌ Create `Helpers/`, `Utilities/`, `Extensions/` folders before they're needed
-✅ Add folders when you actually have 3+ files that belong together
-
----
-
-## 🔄 Workflow with Claude Code
-
-### When Starting a New Session
-
-1. **Read this INSTRUCTIONS.md file first**
-2. Review recent commits to understand current state
-3. Ask clarifying questions if anything is unclear
-4. Break complex tasks into small, testable steps
-
-### When Implementing Features
-
-1. **Plan before coding:**
-   - What views are needed?
-   - What data model changes?
-   - What edge cases exist?
-
-2. **Build incrementally:**
-   - One view at a time
-   - Commit after each complete feature
-   - Test in simulator before moving on
-
-3. **Match existing patterns:**
-   - Follow established UI/UX patterns
-   - Use existing color scheme
-   - Maintain consistent spacing/typography
-
-### When Unsure
-
-**Ask Mathias!** Better to clarify than assume.
-
-**Examples of good questions:**
-- "Should this be a sheet or a full-screen view?"
-- "What should happen if the user deletes all workouts from a plan?"
-- "Should we show a loading indicator during iCloud sync?"
-
----
-
-## 📝 Notes Fields Philosophy
 
 **Every entity has optional notes:**
 - `WorkoutPlan.planDescription`
@@ -515,52 +422,66 @@ let allExerciseNames = Set(allLogs.map { $0.exerciseName }).sorted()
 - `ExerciseLog.notes`
 - `BodyWeightLog.notes`
 
-**Why?**
-Lifting is personal. Users might want to capture:
-- "Felt strong today"
-- "Lower back tight, go easier next time"
-- "Rest-pause on last set"
-- "Starting cut phase"
-
 **Don't remove these.** Flexibility is a core value.
 
 ---
 
-## 🎯 Success Metrics (Internal)
+## Anti-Patterns to Avoid
 
-**What makes Summit successful?**
+### Don't Add Features Preemptively
 
-1. **Users create custom plans** (not asking for pre-built templates)
-2. **Users log workouts consistently** (app is simple enough to use every session)
-3. **Users feel in control** (not fighting the app's opinions)
-4. **Users upgrade to Pro** (they find value in tracking progress)
+- Wait until users actually request it
+- Keep one active plan -- simpler is better
 
-**What would indicate failure?**
+### Don't Over-Validate
 
-1. Users abandon after one session (too complex)
-2. Users request social features (wrong audience)
-3. Users complain about missing features that bloat the app (losing focus)
+- Trust users. If they enter nonsense, it's their data.
+
+### Don't Abstract Too Early
+
+- Keep data and views simple. SwiftData handles persistence. SwiftUI handles state.
+
+### Don't Use @Query in NavigationLink Destinations
+
+- See "SwiftData Known Issues" section above. Use `FetchDescriptor` + `.onAppear` instead.
 
 ---
 
-## 🔮 Long-Term Vision (5+ Years)
+## Technical Constraints & Future-Proofing
+
+### iCloud Sync (Paid Feature)
+
+- SwiftData has built-in CloudKit sync
+- Toggle on: `ModelConfiguration(cloudKitDatabase: .private)`
+- User signs in with Apple ID (already authenticated on device)
+- Data syncs automatically across user's devices
+- Zero backend code needed, zero hosting costs
+
+### Workout Rotation Logic
+
+1. Get all sessions for this plan (sorted by date, newest first)
+2. If phases are enabled, filter to sessions from the active phase
+3. Find the last completed workout
+4. Return the next workout in the rotation (wraps around)
+5. If no sessions exist, return first workout
+
+### Exercise Name Matching for Stats
+
+Exercise names are normalized via `ExerciseDefinition.normalizedName` (lowercased, trimmed). This aggregates all logs for the same exercise across different plans and workouts.
+
+---
+
+## Long-Term Vision (5+ Years)
 
 **Shareable Workout Plans:**
 - Generate URL from workout plan
 - Share on Reddit, Discord, forums
 - Others import with one tap
-- Community-driven ecosystem without social features in-app
 
 **Apple Watch Companion:**
 - Start workout from watch
 - Log sets/reps with Digital Crown
-- See rest timer (if we add it)
 - Sync to iPhone automatically
-
-**Progressive Web App (PWA):**
-- For users who want web access
-- Same data via iCloud sync
-- View history on desktop
 
 **What Summit will NEVER be:**
 - A social network
@@ -570,92 +491,26 @@ Lifting is personal. Users might want to capture:
 
 ---
 
-## 🎨 UI Redesign Notes (Pending)
-
-**Current state:** Default iOS colors, feels generic/boring.
-
-**Planned changes:**
-- **Background:** Charcoal (#2C2C2E or similar dark grey)
-- **Accent:** Orange (#FF9500 or custom)
-- **Secondary text:** Light grey (#AEAEB2)
-- **Cards:** Slightly lighter grey than background (#3A3A3C)
-- **Always dark mode** (no light theme toggle)
-
-**Design inspiration:**
-- Apple Watch workout app (serious, focused)
-- Things 3 (clean but not boring)
-- Strong app (gym-focused aesthetic)
-
-**Maintain:**
-- Clean Apple-style foundation
-- Generous spacing
-- Clear hierarchy
-- Smooth animations
-
----
-
-## 🙋 Questions for Future Features
-
-**Before implementing, ask:**
-
-1. **Does this align with "simple app that works brilliantly"?**
-2. **Is this a paid or free feature?**
-3. **Can this be solved with existing notes fields instead?**
-4. **Will this make the app harder to use?**
-5. **Is there a simpler way?**
-
-**If uncertain, ask Mathias before building.**
-
----
-
-## 📚 Resources
-
-**SwiftUI Documentation:**
-- https://developer.apple.com/documentation/swiftui
-
-**SwiftData Guide:**
-- https://developer.apple.com/documentation/swiftdata
-
-**SF Symbols:**
-- https://developer.apple.com/sf-symbols/
-
-**Design Guidelines:**
-- https://developer.apple.com/design/human-interface-guidelines/
-
----
-
-## ✅ Current Status (Last Updated: 2025-12-23)
+## Current Status (Last Updated: 2026-02-09)
 
 **Completed:**
-- Full workout plan → workout → exercise creation flow
+- Full workout plan -> workout -> exercise creation flow
 - Active workout session with weight-per-set logging
-- Smart workout rotation
-- Progress bar with smooth animation
-- Plan management (set active, delete)
-- All data models complete
-
-**In Progress:**
-- INSTRUCTIONS.md documentation ← You are here
+- Smart workout rotation (phase-aware)
+- Plan phases (blocks) with active phase selection
+- Tab bar navigation (Home + Analytics tabs)
+- Analytics: exercise 1RM charts, plan strength/volume charts
+- History view (last 5 completed sessions)
+- UI redesign: charcoal + orange dark theme
+- Exercise name auto-suggestions via ExerciseDefinition
 
 **Next Up:**
-- UI redesign (charcoal + orange theme)
-- Manual workout override button
-- Workout history view
-- Exercise name auto-suggestions
-- Monetization implementation (Free vs Pro)
+- Paywall (one-time purchase for history + analytics)
+- Plan comparison view
+- Phase management polish (rename, multi-select move/copy)
 
 ---
-
-## 🏁 Final Words
-
-Summit is a **logging tool, not a coaching app.**
-
-The goal is not to have the most features—it's to have the right features, executed brilliantly.
-
-Keep it simple. Keep it focused. Keep it fast.
 
 **When in doubt, ask: "Does this help users log their workouts better?" If not, don't build it.**
-
----
 
 *This document is living and should be updated as the project evolves.*

@@ -15,11 +15,7 @@ final class PlanPhase: Identifiable {
     var orderIndex: Int
     var createdAt: Date
     var isActive: Bool
-
-    var workoutPlan: WorkoutPlan?
-
-    @Relationship(deleteRule: .cascade, inverse: \Workout.phase)
-    var workouts: [Workout]
+    var planId: UUID?
 
     init(
         id: UUID = UUID(),
@@ -27,15 +23,13 @@ final class PlanPhase: Identifiable {
         orderIndex: Int = 0,
         createdAt: Date = Date(),
         isActive: Bool = false,
-        workoutPlan: WorkoutPlan? = nil,
-        workouts: [Workout] = []
+        planId: UUID? = nil
     ) {
         self.id = id
         self.name = name
         self.orderIndex = orderIndex
         self.createdAt = createdAt
         self.isActive = isActive
-        self.workoutPlan = workoutPlan
-        self.workouts = workouts
+        self.planId = planId
     }
 }

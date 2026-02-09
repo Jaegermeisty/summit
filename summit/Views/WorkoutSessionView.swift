@@ -27,7 +27,7 @@ struct WorkoutSessionView: View {
         let sessionId = session.id
         _logs = Query(
             filter: #Predicate<ExerciseLog> { log in
-                log.session?.id == sessionId
+                log.sessionId == sessionId
             },
             sort: \ExerciseLog.orderIndex,
             order: .forward
@@ -287,7 +287,7 @@ struct CompletionToastView: View {
 
 #Preview {
     let plan = WorkoutPlan(name: "Push Pull Legs")
-    let workout = Workout(name: "Push Day", orderIndex: 0, workoutPlan: plan)
+    let workout = Workout(name: "Push Day", orderIndex: 0, planId: plan.id)
     let benchDefinition = ExerciseDefinition(name: "Bench Press")
     let exercise = Exercise(
         definition: benchDefinition,

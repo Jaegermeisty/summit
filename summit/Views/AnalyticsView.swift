@@ -46,8 +46,20 @@ struct AnalyticsView: View {
 
             Spacer()
         }
+        .background(Color.summitBackground)
         .navigationTitle("Analytics")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(Color.summitBackground, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Summit")
+                    .font(.system(size: 18, weight: .bold))
+                    .italic()
+                    .foregroundStyle(Color.summitOrange)
+                    .fixedSize()
+            }
+        }
         .onAppear {
             if selectedExerciseId == nil {
                 selectedExerciseId = definitions.first?.id

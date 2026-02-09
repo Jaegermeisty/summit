@@ -14,7 +14,6 @@ struct ContentView: View {
 
     @State private var showingCreatePlan = false
     @State private var showingHistory = false
-    @State private var showingAnalytics = false
     @State private var selectedSession: WorkoutSession?
     @State private var planToDelete: WorkoutPlan?
     @State private var showingDeleteConfirmation = false
@@ -41,23 +40,13 @@ struct ContentView: View {
             .toolbarBackground(Color.summitBackground, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    HStack(spacing: 12) {
-                        Button {
-                            showingAnalytics = true
-                        } label: {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .foregroundStyle(Color.summitOrange)
-                        }
-                        .accessibilityLabel("Analytics")
-
-                        Button {
-                            showingHistory = true
-                        } label: {
-                            Image(systemName: "clock")
-                                .foregroundStyle(Color.summitOrange)
-                        }
-                        .accessibilityLabel("History")
+                    Button {
+                        showingHistory = true
+                    } label: {
+                        Image(systemName: "clock")
+                            .foregroundStyle(Color.summitOrange)
                     }
+                    .accessibilityLabel("History")
                 }
 
                 ToolbarItem(placement: .principal) {
@@ -79,11 +68,6 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingCreatePlan) {
                 CreateWorkoutPlanView()
-            }
-            .sheet(isPresented: $showingAnalytics) {
-                NavigationStack {
-                    AnalyticsView()
-                }
             }
             .sheet(isPresented: $showingHistory) {
                 NavigationStack {
@@ -134,7 +118,6 @@ struct ContentView: View {
                 if let active = activePlan {
                     ActivePlanCardView(
                         plan: active,
-                        nextWorkout: DataHelpers.nextWorkout(in: active, context: modelContext),
                         onStartWorkout: { workout in
                             selectedSession = DataHelpers.startSession(for: workout, in: modelContext)
                         }
@@ -221,6 +204,16 @@ struct ContentView: View {
     }
 
     private func deletePlan(_ plan: WorkoutPlan) {
+        let pid = plan.id
+        // Manually cascade: delete workouts and phases for this plan
+        let workoutDesc = FetchDescriptor<Workout>(predicate: #Predicate<Workout> { w in w.planId == pid })
+        let phaseDesc = FetchDescriptor<PlanPhase>(predicate: #Predicate<PlanPhase> { p in p.planId == pid })
+        if let workouts = try? modelContext.fetch(workoutDesc) {
+            for w in workouts { modelContext.delete(w) }
+        }
+        if let phases = try? modelContext.fetch(phaseDesc) {
+            for p in phases { modelContext.delete(p) }
+        }
         modelContext.delete(plan)
         do {
             try modelContext.save()
@@ -252,7 +245,7 @@ struct PlanRowView: View {
         let planId = plan.id
         _workouts = Query(
             filter: #Predicate<Workout> { workout in
-                workout.workoutPlan?.id == planId
+                workout.planId == planId
             }
         )
     }
@@ -304,15 +297,77 @@ struct PlanRowView: View {
 struct ActivePlanCardView: View {
     @Environment(\.modelContext) private var modelContext
     let plan: WorkoutPlan
-    let nextWorkout: Workout?
     let onStartWorkout: (Workout) -> Void
 
-    private var workoutCount: Int {
-        DataHelpers.workouts(for: plan, in: modelContext).count
+    @Query private var workouts: [Workout]
+    @Query private var phases: [PlanPhase]
+    @Query private var sessions: [WorkoutSession]
+
+    init(plan: WorkoutPlan, onStartWorkout: @escaping (Workout) -> Void) {
+        self.plan = plan
+        self.onStartWorkout = onStartWorkout
+        let planId = plan.id
+        _workouts = Query(
+            filter: #Predicate<Workout> { workout in
+                workout.planId == planId
+            },
+            sort: \Workout.orderIndex,
+            order: .forward
+        )
+        _phases = Query(
+            filter: #Predicate<PlanPhase> { phase in
+                phase.planId == planId
+            },
+            sort: \PlanPhase.orderIndex,
+            order: .forward
+        )
+        _sessions = Query(
+            filter: #Predicate<WorkoutSession> { session in
+                session.workoutPlanId == planId && session.isCompleted == true
+            },
+            sort: \WorkoutSession.date,
+            order: .reverse
+        )
+    }
+
+    // All computed from @Query — no modelContext fetches
+    private var activePhase: PlanPhase? {
+        guard !phases.isEmpty else { return nil }
+        return phases.first(where: { $0.isActive }) ?? phases.first
     }
 
     private var activePhaseName: String? {
-        DataHelpers.activePhase(for: plan, in: modelContext)?.name
+        activePhase?.name
+    }
+
+    private var filteredWorkouts: [Workout] {
+        if let phase = activePhase {
+            return workouts.filter { $0.phaseId == phase.id }
+        }
+        return Array(workouts)
+    }
+
+    private var nextWorkout: Workout? {
+        let available = filteredWorkouts
+        guard !available.isEmpty else { return nil }
+
+        let relevantSessions: [WorkoutSession]
+        if let phase = activePhase {
+            relevantSessions = sessions.filter { $0.phaseId == phase.id }
+        } else {
+            relevantSessions = Array(sessions)
+        }
+
+        guard let lastSession = relevantSessions.first else {
+            return available.first
+        }
+
+        if let lastIndex = available.firstIndex(where: { $0.id == lastSession.workoutTemplateId }) {
+            let nextIndex = (lastIndex + 1) % available.count
+            return available[nextIndex]
+        }
+
+        return available.first
     }
 
     var body: some View {
@@ -348,18 +403,17 @@ struct ActivePlanCardView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Label("\(workoutCount)", systemImage: "list.bullet")
+                    Label("\(workouts.count)", systemImage: "list.bullet")
                         .font(.caption)
                         .foregroundStyle(Color.summitTextTertiary)
 
-                    Text(workoutCount == 1 ? "workout" : "workouts")
+                    Text(workouts.count == 1 ? "workout" : "workouts")
                         .font(.caption)
                         .foregroundStyle(Color.summitTextTertiary)
                 }
             }
 
             if let workout = nextWorkout {
-                let exerciseCount = DataHelpers.exercises(for: workout, in: modelContext).count
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Next Workout")
                         .font(.caption)
@@ -373,7 +427,7 @@ struct ActivePlanCardView: View {
                                 .font(.headline)
                                 .foregroundStyle(Color.summitText)
 
-                            Text("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
+                            Text("\(workout.exercises.count) exercise\(workout.exercises.count == 1 ? "" : "s")")
                                 .font(.caption)
                                 .foregroundStyle(Color.summitTextSecondary)
                         }
