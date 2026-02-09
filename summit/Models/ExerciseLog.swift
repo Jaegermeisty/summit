@@ -13,7 +13,7 @@ final class ExerciseLog {
     var id: UUID
     var definition: ExerciseDefinition
     var weight: Double // Weight used in kg
-    var reps: [Int] // Array of reps for each set (e.g., [8, 7, 6] for 3 sets)
+    var repsData: Data? // Stored reps for each set
     var notes: String? // Optional notes for this specific session
     var orderIndex: Int // For maintaining exercise order in the workout
 
@@ -32,11 +32,17 @@ final class ExerciseLog {
         self.id = id
         self.definition = definition
         self.weight = weight
-        self.reps = reps
+        self.repsData = ExerciseLog.encodeReps(reps)
         self.notes = notes
         self.orderIndex = orderIndex
         self.sessionId = session?.id
         self.session = session
+    }
+
+    /// Array of reps for each set (e.g., [8, 7, 6] for 3 sets)
+    var reps: [Int] {
+        get { ExerciseLog.decodeReps(from: repsData) }
+        set { repsData = ExerciseLog.encodeReps(newValue) }
     }
 
     var exerciseName: String {
@@ -45,6 +51,15 @@ final class ExerciseLog {
 
     var normalizedExerciseName: String {
         definition.normalizedName
+    }
+
+    private static func encodeReps(_ reps: [Int]) -> Data {
+        (try? JSONEncoder().encode(reps)) ?? Data()
+    }
+
+    private static func decodeReps(from data: Data?) -> [Int] {
+        guard let data else { return [] }
+        return (try? JSONDecoder().decode([Int].self, from: data)) ?? []
     }
 
     /// Calculate the estimated 1RM using the best set (highest reps)

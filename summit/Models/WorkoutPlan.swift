@@ -15,18 +15,21 @@ final class WorkoutPlan: Identifiable {
     var planDescription: String?
     var createdAt: Date
     var isActive: Bool
+    var isArchived: Bool = false
     
     init(
         id: UUID = UUID(),
         name: String,
         planDescription: String? = nil,
         createdAt: Date = Date(),
-        isActive: Bool = true
+        isActive: Bool = true,
+        isArchived: Bool = false
     ) {
         self.id = id
         self.name = name
         self.planDescription = planDescription
         self.createdAt = createdAt
         self.isActive = isActive
+        self.isArchived = isArchived
     }
 }

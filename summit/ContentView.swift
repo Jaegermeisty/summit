@@ -14,16 +14,20 @@ struct ContentView: View {
 
     @State private var showingCreatePlan = false
     @State private var showingHistory = false
-    @State private var selectedSession: WorkoutSession?
     @State private var planToDelete: WorkoutPlan?
     @State private var showingDeleteConfirmation = false
+    @State private var sessionToStart: WorkoutSession?
 
     private var activePlan: WorkoutPlan? {
-        workoutPlans.first(where: { $0.isActive })
+        workoutPlans.first(where: { $0.isActive && !$0.isArchived })
     }
 
     private var otherPlans: [WorkoutPlan] {
-        workoutPlans.filter { !$0.isActive }
+        workoutPlans.filter { !$0.isActive && !$0.isArchived }
+    }
+
+    private var archivedPlans: [WorkoutPlan] {
+        workoutPlans.filter { $0.isArchived }
     }
 
     var body: some View {
@@ -74,7 +78,7 @@ struct ContentView: View {
                     HistoryView()
                 }
             }
-            .navigationDestination(item: $selectedSession) { session in
+            .navigationDestination(item: $sessionToStart) { session in
                 if let workout = DataHelpers.workout(with: session.workoutTemplateId, in: modelContext) {
                     WorkoutSessionView(session: session, workout: workout)
                 } else {
@@ -87,7 +91,7 @@ struct ContentView: View {
                     deletePlan(plan)
                 }
             } message: { plan in
-                Text("Are you sure you want to delete '\(plan.name)'? All workouts and exercises in this plan will be permanently deleted. This cannot be undone.")
+                Text("Are you sure you want to delete '\(plan.name)'? All workouts and exercises in this plan will be permanently deleted. Exercise history will be kept. This cannot be undone.")
             }
         }
     }
@@ -118,13 +122,19 @@ struct ContentView: View {
                 if let active = activePlan {
                     ActivePlanCardView(
                         plan: active,
-                        onStartWorkout: { workout in
-                            selectedSession = DataHelpers.startSession(for: workout, in: modelContext)
+                        startSession: { workout in
+                            sessionToStart = DataHelpers.startSession(for: workout, in: modelContext)
                         }
                     )
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
                     .contextMenu {
+                        Button {
+                            archivePlan(active)
+                        } label: {
+                            Label("Archive", systemImage: "archivebox")
+                        }
+
                         Button(role: .destructive) {
                             planToDelete = active
                             showingDeleteConfirmation = true
@@ -170,6 +180,12 @@ struct ContentView: View {
                                 Label("Set as Active", systemImage: "star.fill")
                             }
 
+                            Button {
+                                archivePlan(plan)
+                            } label: {
+                                Label("Archive", systemImage: "archivebox")
+                            }
+
                             Button(role: .destructive) {
                                 planToDelete = plan
                                 showingDeleteConfirmation = true
@@ -190,6 +206,47 @@ struct ContentView: View {
                         .foregroundStyle(Color.summitTextTertiary)
                 }
             }
+
+            if !archivedPlans.isEmpty {
+                Section {
+                    ForEach(archivedPlans) { plan in
+                        NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
+                            PlanRowView(plan: plan)
+                        }
+                        .listRowBackground(Color.summitCard)
+                        .contextMenu {
+                            Button {
+                                restorePlan(plan)
+                            } label: {
+                                Label("Restore", systemImage: "arrow.uturn.left")
+                            }
+
+                            Button {
+                                restoreAndActivatePlan(plan)
+                            } label: {
+                                Label("Restore & Set Active", systemImage: "star.fill")
+                            }
+
+                            Button(role: .destructive) {
+                                planToDelete = plan
+                                showingDeleteConfirmation = true
+                            } label: {
+                                Label("Delete Plan", systemImage: "trash")
+                            }
+                        }
+                    }
+                    .onDelete(perform: deleteArchivedPlans)
+                } header: {
+                    Text("Archived Plans")
+                        .textCase(nil)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.summitTextSecondary)
+                } footer: {
+                    Text("Archived plans are hidden from Home but can be restored later")
+                        .font(.caption)
+                        .foregroundStyle(Color.summitTextTertiary)
+                }
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Color.summitBackground)
@@ -198,6 +255,14 @@ struct ContentView: View {
     private func deleteOtherPlans(at offsets: IndexSet) {
         for index in offsets {
             let plan = otherPlans[index]
+            planToDelete = plan
+            showingDeleteConfirmation = true
+        }
+    }
+
+    private func deleteArchivedPlans(at offsets: IndexSet) {
+        for index in offsets {
+            let plan = archivedPlans[index]
             planToDelete = plan
             showingDeleteConfirmation = true
         }
@@ -226,12 +291,48 @@ struct ContentView: View {
         for p in workoutPlans {
             p.isActive = false
         }
+        plan.isArchived = false
         plan.isActive = true
 
         do {
             try modelContext.save()
         } catch {
             print("Error setting active plan: \(error)")
+        }
+    }
+
+    private func archivePlan(_ plan: WorkoutPlan) {
+        plan.isArchived = true
+        plan.isActive = false
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error archiving plan: \(error)")
+        }
+    }
+
+    private func restorePlan(_ plan: WorkoutPlan) {
+        plan.isArchived = false
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error restoring plan: \(error)")
+        }
+    }
+
+    private func restoreAndActivatePlan(_ plan: WorkoutPlan) {
+        for p in workoutPlans {
+            p.isActive = false
+        }
+        plan.isArchived = false
+        plan.isActive = true
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error restoring plan: \(error)")
         }
     }
 }
@@ -257,7 +358,20 @@ struct PlanRowView: View {
                     .font(.headline)
                     .foregroundStyle(Color.summitText)
 
-                if plan.isActive {
+                if plan.isArchived {
+                    Spacer()
+
+                    Text("Archived")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule()
+                                .fill(Color.gray)
+                        )
+                } else if plan.isActive {
                     Spacer()
 
                     Text("Active")
@@ -295,17 +409,16 @@ struct PlanRowView: View {
 }
 
 struct ActivePlanCardView: View {
-    @Environment(\.modelContext) private var modelContext
     let plan: WorkoutPlan
-    let onStartWorkout: (Workout) -> Void
+    let startSession: (Workout) -> Void
 
     @Query private var workouts: [Workout]
     @Query private var phases: [PlanPhase]
     @Query private var sessions: [WorkoutSession]
 
-    init(plan: WorkoutPlan, onStartWorkout: @escaping (Workout) -> Void) {
+    init(plan: WorkoutPlan, startSession: @escaping (Workout) -> Void) {
         self.plan = plan
-        self.onStartWorkout = onStartWorkout
+        self.startSession = startSession
         let planId = plan.id
         _workouts = Query(
             filter: #Predicate<Workout> { workout in
@@ -373,20 +486,21 @@ struct ActivePlanCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(plan.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.summitText)
+                NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
+                    HStack {
+                        Text(plan.name)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.summitText)
 
-                    Spacer()
+                        Spacer()
 
-                    NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
                         Image(systemName: "chevron.right")
                             .font(.body)
                             .foregroundStyle(Color.summitTextSecondary)
                     }
                 }
+                .buttonStyle(.plain)
 
                 if let description = plan.planDescription {
                     Text(description)
@@ -443,7 +557,7 @@ struct ActivePlanCardView: View {
                 )
 
                 Button {
-                    onStartWorkout(workout)
+                    startSession(workout)
                 } label: {
                     HStack {
                         Spacer()
@@ -456,6 +570,7 @@ struct ActivePlanCardView: View {
                 }
                 .background(Color.summitOrange)
                 .cornerRadius(10)
+                .buttonStyle(.plain)
             } else {
                 Text("Add workouts to this plan to get started")
                     .font(.subheadline)

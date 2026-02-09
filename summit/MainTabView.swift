@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 
 struct MainTabView: View {
+    @Environment(\.modelContext) private var modelContext
     @State private var selectedTab: Tab = .home
 
     enum Tab {
@@ -33,10 +34,14 @@ struct MainTabView: View {
             .tag(Tab.analytics)
         }
         .tint(Color.summitOrange)
+        .task {
+            SeedData.seedIfNeeded(in: modelContext)
+        }
     }
 }
 
 #Preview {
     MainTabView()
         .modelContainer(ModelContainer.preview)
+        .environmentObject(PurchaseManager())
 }

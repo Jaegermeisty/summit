@@ -10,27 +10,28 @@ import SwiftData
 
 struct WorkoutDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var clipboard: ClipboardStore
     @Bindable var workout: Workout
-    @Query private var exercises: [Exercise]
+    @State private var exercises: [Exercise] = []
 
     @State private var showingCreateExercise = false
     @State private var editingExercise: Exercise?
     @State private var selectedSession: WorkoutSession?
+    @State private var exerciseToDelete: Exercise?
+    @State private var showingDeleteExerciseConfirmation = false
+    @State private var showingEditWorkout = false
+    @State private var editMode: EditMode = .inactive
+    @State private var selectedExerciseIds: Set<UUID> = []
+    @State private var showingBulkDeleteExercisesConfirmation = false
+    @State private var showingMoveExercisesDialog = false
+    @State private var availableWorkouts: [Workout] = []
 
     init(workout: Workout) {
         _workout = Bindable(wrappedValue: workout)
-        let workoutId = workout.id
-        _exercises = Query(
-            filter: #Predicate<Exercise> { exercise in
-                exercise.workoutId == workoutId
-            },
-            sort: \Exercise.orderIndex,
-            order: .forward
-        )
     }
 
     var body: some View {
-        List {
+        List(selection: $selectedExerciseIds) {
             if let notes = workout.notes, !notes.isEmpty {
                 Section {
                     Text(notes)
@@ -75,16 +76,25 @@ struct WorkoutDetailView: View {
                     }
                     .listRowBackground(Color.clear)
                 } else {
-                    ForEach(exercises) { exercise in
-                        Button {
-                            editingExercise = exercise
-                        } label: {
+                ForEach(exercises) { exercise in
+                    Group {
+                        if editMode == .active {
                             ExerciseRowView(exercise: exercise)
+                                .contentShape(Rectangle())
+                        } else {
+                            Button {
+                                editingExercise = exercise
+                            } label: {
+                                ExerciseRowView(exercise: exercise)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
-                        .listRowBackground(Color.summitCard)
                     }
-                    .onDelete(perform: deleteExercises)
+                    .tag(exercise.id)
+                    .listRowBackground(Color.summitCard)
+                }
+                    .onDelete(perform: confirmDeleteExercises)
+                    .onMove(perform: moveExercises)
                 }
             } header: {
                 Text("Exercises")
@@ -105,6 +115,7 @@ struct WorkoutDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(Color.summitBackground, for: .navigationBar)
+        .environment(\.editMode, $editMode)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Text("Summit")
@@ -122,34 +133,325 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(Color.summitOrange)
                 }
             }
+
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        editMode = (editMode == .active) ? .inactive : .active
+                    } label: {
+                        Label(editMode == .active ? "Done Selecting" : "Select Exercises", systemImage: "checklist")
+                    }
+
+                    if clipboard.hasExercises {
+                        Button {
+                            pasteExercises()
+                        } label: {
+                            Label("Paste Exercises", systemImage: "doc.on.clipboard")
+                        }
+                    }
+
+                    if !exercises.isEmpty {
+                        Button {
+                            copyAllExercises()
+                        } label: {
+                            Label("Copy All Exercises", systemImage: "doc.on.doc")
+                        }
+                    }
+
+                    Button {
+                        showingEditWorkout = true
+                    } label: {
+                        Label("Edit Workout", systemImage: "pencil")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(Color.summitOrange)
+                }
+            }
+
         }
-        .sheet(isPresented: $showingCreateExercise) {
+        .safeAreaInset(edge: .bottom) {
+            if editMode == .active && !selectedExerciseIds.isEmpty {
+                selectionActionBar(
+                    doneAction: {
+                        editMode = .inactive
+                        selectedExerciseIds.removeAll()
+                    },
+                    moveAction: { showingMoveExercisesDialog = true },
+                    copyAction: copySelectedExercises,
+                    deleteAction: { showingBulkDeleteExercisesConfirmation = true }
+                )
+                .padding(.bottom, 8)
+            }
+        }
+        .sheet(isPresented: $showingCreateExercise, onDismiss: { refreshExercises() }) {
             CreateExerciseView(workout: workout)
         }
-        .sheet(item: $editingExercise) { exercise in
+        .sheet(item: $editingExercise, onDismiss: { refreshExercises() }) { exercise in
             EditExerciseView(exercise: exercise)
+        }
+        .sheet(isPresented: $showingEditWorkout) {
+            EditWorkoutView(workout: workout)
+        }
+        .alert("Delete Exercise", isPresented: $showingDeleteExerciseConfirmation, presenting: exerciseToDelete) { exercise in
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteExercise(exercise)
+            }
+        } message: { exercise in
+            Text("Are you sure you want to delete '\(exercise.name)'? This removes it from the workout. Exercise history will be kept. This cannot be undone.")
+        }
+        .alert("Delete Exercises", isPresented: $showingBulkDeleteExercisesConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteSelectedExercises()
+            }
+        } message: {
+            Text("Delete \(selectedExerciseIds.count) exercise(s)? Exercise history will be kept. This cannot be undone.")
+        }
+        .confirmationDialog("Move Exercises", isPresented: $showingMoveExercisesDialog) {
+            ForEach(availableWorkouts.filter { $0.id != workout.id }) { target in
+                Button("Move to \(target.name)") {
+                    moveSelectedExercises(to: target)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Choose a workout for the selected exercises.")
         }
         .navigationDestination(item: $selectedSession) { session in
             WorkoutSessionView(session: session, workout: workout)
         }
+        .onAppear {
+            refreshExercises()
+            loadAvailableWorkouts()
+        }
     }
 
-    private func deleteExercises(at offsets: IndexSet) {
-        for index in offsets {
-            let exercise = exercises[index]
+    private func confirmDeleteExercises(at offsets: IndexSet) {
+        guard let index = offsets.first, exercises.indices.contains(index) else { return }
+        exerciseToDelete = exercises[index]
+        showingDeleteExerciseConfirmation = true
+    }
+
+    private func deleteExercise(_ exercise: Exercise) {
+        modelContext.delete(exercise)
+
+        reindexExercises(excluding: exercise.id)
+
+        do {
+            try modelContext.save()
+            refreshExercises()
+        } catch {
+            print("Error deleting exercise: \(error)")
+        }
+    }
+
+    private func deleteSelectedExercises() {
+        let toDelete = selectedExercises
+        guard !toDelete.isEmpty else { return }
+
+        for exercise in toDelete {
             modelContext.delete(exercise)
         }
 
-        let remaining = exercises.enumerated().filter { !offsets.contains($0.offset) }
-        for (newIndex, (_, exercise)) in remaining.enumerated() {
-            exercise.orderIndex = newIndex
+        reindexExercises(excludingIds: Set(toDelete.map(\.id)))
+
+        do {
+            try modelContext.save()
+            selectedExerciseIds.removeAll()
+            refreshExercises()
+        } catch {
+            print("Error deleting exercises: \(error)")
+        }
+    }
+
+    private func selectionActionBar(
+        doneAction: @escaping () -> Void,
+        moveAction: @escaping () -> Void,
+        copyAction: @escaping () -> Void,
+        deleteAction: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 16) {
+            Button("Done") {
+                doneAction()
+            }
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.summitTextSecondary)
+
+            Button("Move") {
+                moveAction()
+            }
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.summitOrange)
+
+            Button("Copy") {
+                copyAction()
+            }
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.summitOrange)
+
+            Spacer()
+
+            Button("Delete", role: .destructive) {
+                deleteAction()
+            }
+            .fontWeight(.semibold)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.summitCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.summitTextTertiary.opacity(0.25), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+    }
+
+    private func moveExercises(from offsets: IndexSet, to destination: Int) {
+        var updated = exercises
+        updated.move(fromOffsets: offsets, toOffset: destination)
+        for (index, exercise) in updated.enumerated() {
+            exercise.orderIndex = index
         }
 
         do {
             try modelContext.save()
+            refreshExercises()
         } catch {
-            print("Error deleting exercise: \(error)")
+            print("Error reordering exercises: \(error)")
         }
+    }
+
+    private func copySelectedExercises() {
+        let templates = selectedExercises.map { exercise in
+            ExerciseTemplate(
+                name: exercise.name,
+                targetWeight: exercise.targetWeight,
+                targetRepsMin: exercise.targetRepsMin,
+                targetRepsMax: exercise.targetRepsMax,
+                numberOfSets: exercise.numberOfSets,
+                notes: exercise.notes
+            )
+        }
+        clipboard.setExercises(templates)
+        if editMode == .active {
+            editMode = .inactive
+        }
+        selectedExerciseIds.removeAll()
+    }
+
+    private func copyAllExercises() {
+        let templates = exercises
+            .sorted(by: { $0.orderIndex < $1.orderIndex })
+            .map { exercise in
+                ExerciseTemplate(
+                    name: exercise.name,
+                    targetWeight: exercise.targetWeight,
+                    targetRepsMin: exercise.targetRepsMin,
+                    targetRepsMax: exercise.targetRepsMax,
+                    numberOfSets: exercise.numberOfSets,
+                    notes: exercise.notes
+                )
+            }
+        clipboard.setExercises(templates)
+    }
+
+    private func pasteExercises() {
+        guard clipboard.hasExercises else { return }
+        var nextIndex = exercises.count
+
+        for template in clipboard.exercises {
+            let definition = DataHelpers.definition(named: template.name, in: modelContext)
+            let newExercise = Exercise(
+                definition: definition,
+                targetWeight: template.targetWeight,
+                targetRepsMin: template.targetRepsMin,
+                targetRepsMax: template.targetRepsMax,
+                numberOfSets: template.numberOfSets,
+                notes: template.notes,
+                orderIndex: nextIndex,
+                workout: workout
+            )
+            modelContext.insert(newExercise)
+            nextIndex += 1
+        }
+
+        do {
+            try modelContext.save()
+            refreshExercises()
+        } catch {
+            print("Error pasting exercises: \(error)")
+        }
+    }
+
+    private func moveSelectedExercises(to target: Workout) {
+        let toMove = selectedExercises
+        guard !toMove.isEmpty else { return }
+
+        let targetExercises = DataHelpers.exercises(for: target, in: modelContext)
+        var nextIndex = targetExercises.count
+
+        for exercise in toMove {
+            exercise.workoutId = target.id
+            exercise.workout = target
+            exercise.orderIndex = nextIndex
+            nextIndex += 1
+        }
+
+        reindexExercises(excludingIds: Set(toMove.map(\.id)))
+
+        do {
+            try modelContext.save()
+            selectedExerciseIds.removeAll()
+            refreshExercises()
+        } catch {
+            print("Error moving exercises: \(error)")
+        }
+    }
+
+    private func reindexExercises(excluding excludedId: UUID) {
+        reindexExercises(excludingIds: [excludedId])
+    }
+
+    private func reindexExercises(excludingIds excludedIds: Set<UUID>) {
+        let remaining = exercises.filter { !excludedIds.contains($0.id) }
+        let sorted = remaining.sorted(by: { $0.orderIndex < $1.orderIndex })
+        for (newIndex, item) in sorted.enumerated() {
+            item.orderIndex = newIndex
+        }
+    }
+
+    private var selectedExercises: [Exercise] {
+        exercises
+            .filter { selectedExerciseIds.contains($0.id) }
+            .sorted(by: { $0.orderIndex < $1.orderIndex })
+    }
+
+    private func loadAvailableWorkouts() {
+        guard let planId = workout.planId else {
+            availableWorkouts = []
+            return
+        }
+        let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate<Workout> { item in
+                item.planId == planId
+            },
+            sortBy: [SortDescriptor(\Workout.orderIndex, order: .forward)]
+        )
+        availableWorkouts = (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func refreshExercises() {
+        let workoutId = workout.id
+        let descriptor = FetchDescriptor<Exercise>(
+            predicate: #Predicate<Exercise> { exercise in
+                exercise.workoutId == workoutId
+            },
+            sortBy: [SortDescriptor(\Exercise.orderIndex, order: .forward)]
+        )
+        exercises = (try? modelContext.fetch(descriptor)) ?? []
     }
 }
 
@@ -230,4 +532,5 @@ struct ExerciseRowView: View {
         }())
     }
     .modelContainer(ModelContainer.preview)
+    .environmentObject(ClipboardStore())
 }

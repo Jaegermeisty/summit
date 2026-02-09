@@ -27,9 +27,10 @@ private enum ActiveSheet: Identifiable {
 
 struct WorkoutPlanDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var clipboard: ClipboardStore
     @Bindable var plan: WorkoutPlan
-    @Query private var workouts: [Workout]
-    @Query private var phases: [PlanPhase]
+    @State private var workouts: [Workout] = []
+    @State private var phases: [PlanPhase] = []
 
     @State private var activeSheet: ActiveSheet?
     @State private var createWorkoutPhaseId: UUID?
@@ -39,162 +40,68 @@ struct WorkoutPlanDetailView: View {
     @State private var phaseNameInput: String = ""
     @State private var phaseToDelete: PlanPhase?
     @State private var showingDeletePhaseConfirmation = false
+    @State private var showingEditPlan = false
+    @State private var editMode: EditMode = .inactive
+    @State private var selectedWorkoutIds: Set<UUID> = []
+    @State private var showingBulkDeleteConfirmation = false
+    @State private var showingPastePhaseDialog = false
+    @State private var pendingPasteWorkouts: [WorkoutTemplate] = []
 
     init(plan: WorkoutPlan) {
         _plan = Bindable(wrappedValue: plan)
-        let planId = plan.id
-        _workouts = Query(
-            filter: #Predicate<Workout> { workout in
-                workout.planId == planId
-            },
-            sort: \Workout.orderIndex,
-            order: .forward
-        )
-        _phases = Query(
-            filter: #Predicate<PlanPhase> { phase in
-                phase.planId == planId
-            },
-            sort: \PlanPhase.orderIndex,
-            order: .forward
-        )
     }
 
     var body: some View {
-        List {
-            if let description = plan.planDescription {
-                Section {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                }
-                .listRowBackground(Color.summitCard)
-            }
-
-            Section {
-                if phases.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Organize your plan into phases (blocks). Workouts can’t live outside phases once enabled.")
-                            .font(.subheadline)
-                            .foregroundStyle(Color.summitTextSecondary)
-
-                        Button {
-                            showPhasePrompt(.enable)
-                        } label: {
-                            Text("Enable Phases")
-                                .fontWeight(.semibold)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.summitOrange)
-                    }
-                    .padding(.vertical, 6)
-                    .listRowBackground(Color.summitCard)
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Tap a phase to see its workouts.")
-                            .font(.caption)
-                            .foregroundStyle(Color.summitTextTertiary)
-
-                        Text("Active phase controls the next workout shown on Home.")
-                            .font(.caption)
-                            .foregroundStyle(Color.summitTextTertiary)
-                    }
-                    .padding(.vertical, 4)
-                    .listRowBackground(Color.summitCard)
-                }
-            }
-
-            if phases.isEmpty {
-                Section {
-                    if workouts.isEmpty {
-                        ContentUnavailableView {
-                            Label("No Workouts", systemImage: "figure.strengthtraining.traditional")
-                                .foregroundStyle(Color.summitText)
-                        } description: {
-                            Text("Add your first workout to get started")
-                                .foregroundStyle(Color.summitTextSecondary)
-                        } actions: {
-                            Button {
-                                showCreateWorkout()
-                            } label: {
-                                Text("Add Workout")
-                                    .fontWeight(.semibold)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color.summitOrange)
-                        }
-                        .listRowBackground(Color.clear)
-                    } else {
-                        ForEach(workouts) { workout in
-                            NavigationLink(destination: WorkoutDetailView(workout: workout)) {
-                                WorkoutRowView(workout: workout, exerciseCount: workout.exercises.count)
-                            }
-                            .listRowBackground(Color.summitCard)
-                        }
-                        .onDelete { offsets in
-                            deleteWorkouts(at: offsets, in: nil)
-                        }
-                    }
-                } header: {
-                    Text("Workouts")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    if !workouts.isEmpty {
-                        Text("Swipe left on a workout to delete it")
-                            .font(.caption)
-                            .foregroundStyle(Color.summitTextTertiary)
-                    }
-                }
-            } else {
-                Section {
-                    ForEach(phases) { phase in
-                        NavigationLink {
-                            PhaseDetailView(phase: phase, plan: plan)
-                        } label: {
-                            PhaseListRowView(phase: phase, workoutCount: workouts.filter { $0.phaseId == phase.id }.count)
-                        }
-                        .listRowBackground(Color.summitCard)
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            if !phase.isActive {
-                                Button {
-                                    setActivePhase(phase)
-                                } label: {
-                                    Label("Set Active", systemImage: "star.fill")
-                                }
-                                .tint(Color.summitOrange)
-                            }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                phaseToDelete = phase
-                                showingDeletePhaseConfirmation = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Phases")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                }
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .background(Color.summitBackground)
-        .navigationTitle(plan.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color.summitBackground, for: .navigationBar)
-        .toolbar {
+        contentList
+            .scrollContentBackground(.hidden)
+            .background(Color.summitBackground)
+            .navigationTitle(plan.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .environment(\.editMode, $editMode)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+            .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Text("Summit")
                     .font(.system(size: 18, weight: .bold))
                     .italic()
                     .foregroundStyle(Color.summitOrange)
                     .fixedSize()
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        editMode = (editMode == .active) ? .inactive : .active
+                    } label: {
+                        Label(editMode == .active ? "Done Selecting" : "Select Workouts", systemImage: "checklist")
+                    }
+
+                    if clipboard.hasWorkouts {
+                        Button {
+                            handlePasteAction()
+                        } label: {
+                            Label("Paste Workouts", systemImage: "doc.on.clipboard")
+                        }
+                    }
+
+                    if !workouts.isEmpty {
+                        Button {
+                            copyWorkouts(workouts.sorted(by: { $0.orderIndex < $1.orderIndex }))
+                        } label: {
+                            Label("Copy All Workouts", systemImage: "doc.on.doc")
+                        }
+                    }
+
+                    Button {
+                        showingEditPlan = true
+                    } label: {
+                        Label("Edit Plan", systemImage: "pencil")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(Color.summitOrange)
+                }
             }
 
             ToolbarItem(placement: .primaryAction) {
@@ -209,8 +116,25 @@ struct WorkoutPlanDetailView: View {
                         .foregroundStyle(Color.summitOrange)
                 }
             }
+
         }
-        .sheet(item: $activeSheet) { sheet in
+        .safeAreaInset(edge: .bottom) {
+            if phases.isEmpty && editMode == .active && !selectedWorkoutIds.isEmpty {
+                selectionActionBar(
+                    doneAction: {
+                        editMode = .inactive
+                        selectedWorkoutIds.removeAll()
+                    },
+                    primaryTitle: "Copy",
+                    primaryAction: copySelectedWorkouts,
+                    secondaryTitle: "Delete",
+                    secondaryRole: .destructive,
+                    secondaryAction: { showingBulkDeleteConfirmation = true }
+                )
+                .padding(.bottom, 8)
+            }
+        }
+        .sheet(item: $activeSheet, onDismiss: { refreshData() }) { sheet in
             switch sheet {
             case .createWorkout:
                 CreateWorkoutView(workoutPlan: plan, preselectedPhaseId: createWorkoutPhaseId)
@@ -228,13 +152,31 @@ struct WorkoutPlanDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingEditPlan, onDismiss: { refreshData() }) {
+            EditWorkoutPlanView(plan: plan)
+        }
+        .confirmationDialog("Paste Workouts", isPresented: $showingPastePhaseDialog) {
+            ForEach(phases) { phase in
+                Button("Paste to \(phase.name)") {
+                    pasteWorkouts(into: phase)
+                }
+            }
+            Button("New Phase...") {
+                pendingPasteWorkouts = clipboard.workouts
+                phaseNameInput = "Phase \(phases.count + 1)"
+                showPhasePrompt(.add)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Choose a phase for the pasted workouts.")
+        }
         .alert("Delete Workout", isPresented: $showingDeleteConfirmation, presenting: workoutToDelete) { workout in
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
                 deleteWorkout(workout)
             }
         } message: { workout in
-            Text("Are you sure you want to delete '\(workout.name)'? All exercises in this workout will be permanently deleted. This cannot be undone.")
+            Text("Are you sure you want to delete '\(workout.name)'? All exercises in this workout will be permanently deleted. Exercise history will be kept. This cannot be undone.")
         }
         .alert("Delete Phase", isPresented: $showingDeletePhaseConfirmation, presenting: phaseToDelete) { phase in
             Button("Cancel", role: .cancel) { }
@@ -242,7 +184,172 @@ struct WorkoutPlanDetailView: View {
                 deletePhase(phase)
             }
         } message: { phase in
-            Text("Deleting '\(phase.name)' will remove all workouts inside it. This cannot be undone.")
+            Text("Deleting '\(phase.name)' will remove all workouts inside it. Exercise history will be kept. This cannot be undone.")
+        }
+        .alert("Delete Workouts", isPresented: $showingBulkDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteSelectedWorkouts()
+            }
+        } message: {
+            Text("Delete \(selectedWorkoutIds.count) workout(s)? All exercises in these workouts will be permanently deleted. Exercise history will be kept. This cannot be undone.")
+        }
+        .onAppear {
+            refreshData()
+        }
+    }
+
+    private var contentList: some View {
+        List(selection: $selectedWorkoutIds) {
+            planDescriptionSection
+            phaseInfoSection
+            workoutsOrPhasesSection
+        }
+    }
+
+    @ViewBuilder
+    private var planDescriptionSection: some View {
+        if let description = plan.planDescription {
+            Section {
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.summitTextSecondary)
+            }
+            .listRowBackground(Color.summitCard)
+        }
+    }
+
+    private var phaseInfoSection: some View {
+        Section {
+            if phases.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Organize your plan into phases (blocks). Workouts can’t live outside phases once enabled.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.summitTextSecondary)
+
+                    Button {
+                        showPhasePrompt(.enable)
+                    } label: {
+                        Text("Enable Phases")
+                            .fontWeight(.semibold)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.summitOrange)
+                }
+                .padding(.vertical, 6)
+                .listRowBackground(Color.summitCard)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Tap a phase to see its workouts.")
+                        .font(.caption)
+                        .foregroundStyle(Color.summitTextTertiary)
+
+                    Text("Active phase controls the next workout shown on Home.")
+                        .font(.caption)
+                        .foregroundStyle(Color.summitTextTertiary)
+                }
+                .padding(.vertical, 4)
+                .listRowBackground(Color.summitCard)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var workoutsOrPhasesSection: some View {
+        if phases.isEmpty {
+            workoutsSection
+        } else {
+            phasesSection
+        }
+    }
+
+    private var workoutsSection: some View {
+        Section {
+            if workouts.isEmpty {
+                ContentUnavailableView {
+                    Label("No Workouts", systemImage: "figure.strengthtraining.traditional")
+                        .foregroundStyle(Color.summitText)
+                } description: {
+                    Text("Add your first workout to get started")
+                        .foregroundStyle(Color.summitTextSecondary)
+                } actions: {
+                    Button {
+                        showCreateWorkout()
+                    } label: {
+                        Text("Add Workout")
+                            .fontWeight(.semibold)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.summitOrange)
+                }
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(workouts) { workout in
+                    Group {
+                        if editMode == .active {
+                            WorkoutRowView(workout: workout, exerciseCount: exerciseCount(for: workout))
+                                .contentShape(Rectangle())
+                        } else {
+                            NavigationLink(destination: WorkoutDetailView(workout: workout)) {
+                                WorkoutRowView(workout: workout, exerciseCount: exerciseCount(for: workout))
+                            }
+                        }
+                    }
+                    .tag(workout.id)
+                    .listRowBackground(Color.summitCard)
+                }
+                .onDelete { offsets in
+                    deleteWorkouts(at: offsets, in: nil)
+                }
+                .onMove(perform: moveWorkouts)
+            }
+        } header: {
+            Text("Workouts")
+                .textCase(nil)
+                .font(.subheadline)
+                .foregroundStyle(Color.summitTextSecondary)
+        } footer: {
+            if !workouts.isEmpty {
+                Text("Swipe left on a workout to delete it")
+                    .font(.caption)
+                    .foregroundStyle(Color.summitTextTertiary)
+            }
+        }
+    }
+
+    private var phasesSection: some View {
+        Section {
+            ForEach(phases) { phase in
+                NavigationLink {
+                    PhaseDetailView(phase: phase, plan: plan)
+                } label: {
+                    PhaseListRowView(phase: phase, workoutCount: workouts.filter { $0.phaseId == phase.id }.count)
+                }
+                .listRowBackground(Color.summitCard)
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    if !phase.isActive {
+                        Button {
+                            setActivePhase(phase)
+                        } label: {
+                            Label("Set Active", systemImage: "star.fill")
+                        }
+                        .tint(Color.summitOrange)
+                    }
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        phaseToDelete = phase
+                        showingDeletePhaseConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+        } header: {
+            Text("Phases")
+                .textCase(nil)
+                .font(.subheadline)
+                .foregroundStyle(Color.summitTextSecondary)
         }
     }
 
@@ -276,6 +383,24 @@ struct WorkoutPlanDetailView: View {
         showingDeleteConfirmation = true
     }
 
+    private func deleteSelectedWorkouts() {
+        let toDelete = selectedWorkouts
+        guard !toDelete.isEmpty else { return }
+
+        for workout in toDelete {
+            modelContext.delete(workout)
+        }
+
+        do {
+            reindexWorkouts(inPhaseId: nil)
+            try modelContext.save()
+            selectedWorkoutIds.removeAll()
+            refreshData()
+        } catch {
+            print("Error deleting workouts: \(error)")
+        }
+    }
+
     private func deleteWorkout(_ workout: Workout) {
         let phaseId = workout.phaseId
         modelContext.delete(workout)
@@ -283,6 +408,7 @@ struct WorkoutPlanDetailView: View {
         do {
             reindexWorkouts(inPhaseId: phaseId)
             try modelContext.save()
+            refreshData()
         } catch {
             print("Error deleting workout: \(error)")
         }
@@ -311,7 +437,10 @@ struct WorkoutPlanDetailView: View {
         case .enable:
             enablePhases(named: trimmedName)
         case .add:
-            addPhase(named: trimmedName)
+            if let newPhase = addPhase(named: trimmedName), !pendingPasteWorkouts.isEmpty {
+                pasteWorkouts(into: newPhase)
+                pendingPasteWorkouts = []
+            }
         }
     }
 
@@ -332,12 +461,14 @@ struct WorkoutPlanDetailView: View {
 
         do {
             try modelContext.save()
+            refreshData()
         } catch {
             print("Error enabling phases: \(error)")
         }
     }
 
-    private func addPhase(named name: String) {
+    @discardableResult
+    private func addPhase(named name: String) -> PlanPhase? {
         let newPhase = PlanPhase(
             name: name,
             orderIndex: phases.count,
@@ -348,8 +479,11 @@ struct WorkoutPlanDetailView: View {
 
         do {
             try modelContext.save()
+            refreshData()
+            return newPhase
         } catch {
             print("Error adding phase: \(error)")
+            return nil
         }
     }
 
@@ -360,6 +494,7 @@ struct WorkoutPlanDetailView: View {
 
         do {
             try modelContext.save()
+            refreshData()
         } catch {
             print("Error setting active phase: \(error)")
         }
@@ -385,6 +520,7 @@ struct WorkoutPlanDetailView: View {
 
         do {
             try modelContext.save()
+            refreshData()
         } catch {
             print("Error deleting phase: \(error)")
         }
@@ -404,6 +540,172 @@ struct WorkoutPlanDetailView: View {
         for (index, workout) in filtered.enumerated() {
             workout.orderIndex = index
         }
+    }
+
+    private func moveWorkouts(from offsets: IndexSet, to destination: Int) {
+        var updated = workouts.sorted(by: { $0.orderIndex < $1.orderIndex })
+        updated.move(fromOffsets: offsets, toOffset: destination)
+        for (index, workout) in updated.enumerated() {
+            workout.orderIndex = index
+        }
+
+        do {
+            try modelContext.save()
+            refreshData()
+        } catch {
+            print("Error reordering workouts: \(error)")
+        }
+    }
+
+    private func selectionActionBar(
+        doneAction: @escaping () -> Void,
+        primaryTitle: String,
+        primaryAction: @escaping () -> Void,
+        secondaryTitle: String,
+        secondaryRole: ButtonRole? = nil,
+        secondaryAction: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 16) {
+            Button("Done") {
+                doneAction()
+            }
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.summitTextSecondary)
+
+            Button(primaryTitle) {
+                primaryAction()
+            }
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.summitOrange)
+
+            Spacer()
+
+            Button(secondaryTitle, role: secondaryRole) {
+                secondaryAction()
+            }
+            .fontWeight(.semibold)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.summitCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.summitTextTertiary.opacity(0.25), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+    }
+
+    private var selectedWorkouts: [Workout] {
+        workouts
+            .filter { selectedWorkoutIds.contains($0.id) }
+            .sorted(by: { $0.orderIndex < $1.orderIndex })
+    }
+
+    private func copySelectedWorkouts() {
+        copyWorkouts(selectedWorkouts)
+        if editMode == .active {
+            editMode = .inactive
+        }
+        selectedWorkoutIds.removeAll()
+    }
+
+    private func copyWorkouts(_ workouts: [Workout]) {
+        let templates = workouts.map { workout in
+            let exercises = DataHelpers.exercises(for: workout, in: modelContext)
+                .sorted(by: { $0.orderIndex < $1.orderIndex })
+                .map { exercise in
+                    ExerciseTemplate(
+                        name: exercise.name,
+                        targetWeight: exercise.targetWeight,
+                        targetRepsMin: exercise.targetRepsMin,
+                        targetRepsMax: exercise.targetRepsMax,
+                        numberOfSets: exercise.numberOfSets,
+                        notes: exercise.notes
+                    )
+                }
+            return WorkoutTemplate(name: workout.name, notes: workout.notes, exercises: exercises)
+        }
+        clipboard.setWorkouts(templates)
+    }
+
+    private func handlePasteAction() {
+        guard clipboard.hasWorkouts else { return }
+        if phases.isEmpty {
+            pasteWorkouts(into: nil)
+        } else {
+            showingPastePhaseDialog = true
+        }
+    }
+
+    private func pasteWorkouts(into phase: PlanPhase?) {
+        guard clipboard.hasWorkouts else { return }
+        let existing = DataHelpers.workouts(for: plan, in: modelContext, phase: phase)
+        var nextIndex = existing.count
+
+        for template in clipboard.workouts {
+            let newWorkout = Workout(
+                name: template.name,
+                notes: template.notes,
+                orderIndex: nextIndex,
+                planId: plan.id,
+                phaseId: phase?.id
+            )
+            modelContext.insert(newWorkout)
+
+            for (idx, exercise) in template.exercises.enumerated() {
+                let definition = DataHelpers.definition(named: exercise.name, in: modelContext)
+                let newExercise = Exercise(
+                    definition: definition,
+                    targetWeight: exercise.targetWeight,
+                    targetRepsMin: exercise.targetRepsMin,
+                    targetRepsMax: exercise.targetRepsMax,
+                    numberOfSets: exercise.numberOfSets,
+                    notes: exercise.notes,
+                    orderIndex: idx,
+                    workout: newWorkout
+                )
+                modelContext.insert(newExercise)
+            }
+
+            nextIndex += 1
+        }
+
+        do {
+            try modelContext.save()
+            refreshData()
+        } catch {
+            print("Error pasting workouts: \(error)")
+        }
+    }
+
+    private func refreshData() {
+        let planId = plan.id
+        let workoutDescriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate<Workout> { item in
+                item.planId == planId
+            },
+            sortBy: [SortDescriptor(\Workout.orderIndex, order: .forward)]
+        )
+        let phaseDescriptor = FetchDescriptor<PlanPhase>(
+            predicate: #Predicate<PlanPhase> { item in
+                item.planId == planId
+            },
+            sortBy: [SortDescriptor(\PlanPhase.orderIndex, order: .forward)]
+        )
+
+        workouts = (try? modelContext.fetch(workoutDescriptor)) ?? []
+        phases = (try? modelContext.fetch(phaseDescriptor)) ?? []
+    }
+
+    private func exerciseCount(for workout: Workout) -> Int {
+        let workoutId = workout.id
+        let descriptor = FetchDescriptor<Exercise>(
+            predicate: #Predicate<Exercise> { exercise in
+                exercise.workoutId == workoutId
+            }
+        )
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
     }
 }
 
@@ -550,4 +852,5 @@ struct PhasePromptView: View {
         }())
     }
     .modelContainer(ModelContainer.preview)
+    .environmentObject(ClipboardStore())
 }

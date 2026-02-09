@@ -11,6 +11,7 @@ import SwiftData
 struct WorkoutSessionView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var purchaseManager: PurchaseManager
 
     @Bindable var session: WorkoutSession
     let workout: Workout
@@ -19,6 +20,7 @@ struct WorkoutSessionView: View {
     @State private var lastLogsByDefinition: [String: ExerciseLog] = [:]
     @State private var templatesByOrder: [Int: Exercise] = [:]
     @State private var showCompletionToast = false
+    @State private var showingPaywall = false
 
     init(session: WorkoutSession, workout: Workout) {
         _session = Bindable(wrappedValue: session)
@@ -104,9 +106,43 @@ struct WorkoutSessionView: View {
             loadLastLogs()
             loadTemplates()
         }
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView(
+                title: "Unlock Pro",
+                subtitle: "Save workout history and unlock analytics.",
+                features: [
+                    "Save completed workouts",
+                    "Full history access",
+                    "Progress analytics"
+                ],
+                primaryTitle: "Unlock Pro",
+                primaryAction: { attemptUnlockAndComplete() },
+                secondaryTitle: "Finish Without Saving",
+                secondaryRole: .destructive,
+                secondaryAction: {
+                    showingPaywall = false
+                    discardSession()
+                },
+                showsRestore: true,
+                restoreAction: { attemptRestoreAndComplete() },
+                showsClose: true,
+                closeAction: {
+                    showingPaywall = false
+                }
+            )
+        }
     }
 
     private func finishSession() {
+        guard purchaseManager.isPro else {
+            showingPaywall = true
+            return
+        }
+
+        completeAndSaveSession()
+    }
+
+    private func completeAndSaveSession() {
         session.isCompleted = true
         session.completedAt = Date()
 
@@ -120,6 +156,37 @@ struct WorkoutSessionView: View {
             }
         } catch {
             print("Error completing session: \(error)")
+        }
+    }
+
+    private func discardSession() {
+        modelContext.delete(session)
+
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            print("Error discarding session: \(error)")
+        }
+    }
+
+    private func attemptUnlockAndComplete() {
+        Task {
+            await purchaseManager.purchase()
+            if purchaseManager.isPro {
+                showingPaywall = false
+                completeAndSaveSession()
+            }
+        }
+    }
+
+    private func attemptRestoreAndComplete() {
+        Task {
+            await purchaseManager.restorePurchases()
+            if purchaseManager.isPro {
+                showingPaywall = false
+                completeAndSaveSession()
+            }
         }
     }
 
@@ -318,5 +385,6 @@ struct CompletionToastView: View {
     return NavigationStack {
         WorkoutSessionView(session: session, workout: workout)
             .modelContainer(ModelContainer.preview)
+            .environmentObject(PurchaseManager())
     }
 }

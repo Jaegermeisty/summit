@@ -12,6 +12,7 @@ import UIKit
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var purchaseManager: PurchaseManager
     @Query(
         filter: #Predicate<WorkoutSession> { session in
             session.isCompleted == true
@@ -25,25 +26,47 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        List {
-            if recentSessions.isEmpty {
-                ContentUnavailableView {
-                    Label("No History Yet", systemImage: "clock")
-                } description: {
-                    Text("Complete a workout to see it here")
-                }
-            } else {
-                ForEach(recentSessions) { session in
-                    NavigationLink {
-                        if let workout = DataHelpers.workout(with: session.workoutTemplateId, in: modelContext) {
-                            WorkoutSessionView(session: session, workout: workout)
-                        } else {
-                            WorkoutSessionView(session: session, workout: Workout(name: session.workoutTemplateName))
+        Group {
+            if purchaseManager.isPro {
+                List {
+                    if recentSessions.isEmpty {
+                        ContentUnavailableView {
+                            Label("No History Yet", systemImage: "clock")
+                        } description: {
+                            Text("Complete a workout to see it here")
                         }
-                    } label: {
-                        HistoryRowView(session: session)
+                    } else {
+                        ForEach(recentSessions) { session in
+                            NavigationLink {
+                                if let workout = DataHelpers.workout(with: session.workoutTemplateId, in: modelContext) {
+                                    WorkoutSessionView(session: session, workout: workout)
+                                } else {
+                                    WorkoutSessionView(session: session, workout: Workout(name: session.workoutTemplateName))
+                                }
+                            } label: {
+                                HistoryRowView(session: session)
+                            }
+                        }
                     }
                 }
+            } else {
+                PaywallView(
+                    title: "Unlock History",
+                    subtitle: "Review your completed workouts and track long-term progress.",
+                    features: [
+                        "Full workout history",
+                        "Session details",
+                        "Progress tracking"
+                    ],
+                    primaryTitle: "Unlock Pro",
+                    primaryAction: {
+                        Task { await purchaseManager.purchase() }
+                    },
+                    showsRestore: true,
+                    restoreAction: {
+                        Task { await purchaseManager.restorePurchases() }
+                    }
+                )
             }
         }
         .navigationTitle("History")
@@ -102,5 +125,6 @@ struct HistoryRowView: View {
     NavigationStack {
         HistoryView()
             .modelContainer(ModelContainer.preview)
+            .environmentObject(PurchaseManager())
     }
 }

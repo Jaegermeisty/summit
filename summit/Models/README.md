@@ -6,6 +6,9 @@ This folder contains the SwiftData model used by the **Summit** app, plus helper
 
 Summit is a simple, fast workout tracker built around **plans** and an **active plan**. The intended core flow is:
 
+App Store name: **Summit: Workout Tracker**
+In‑app purchase (non‑consumable) Product ID: **com.mathias.summit**
+
 1. Create a workout plan
 2. Add workouts (days) to the plan
 3. Add exercises to each workout
@@ -23,6 +26,7 @@ The app should make it effortless to train from the **active plan**:
 
 - SwiftData models for plans, phases, workouts, exercises, sessions, logs, and body weight.
 - Shared and preview model containers with sample data.
+- Seed data for a default 3-day split + ~8 weeks of completed history (runs once on empty store).
 - Canonical exercise catalog with case-insensitive matching and suggestions.
 - Auto-fill target weight from last known template/log (when creating exercises).
 - Active plan card on Home with "Start Workout".
@@ -30,10 +34,27 @@ The app should make it effortless to train from the **active plan**:
 - History list (last 5 completed sessions) with edit capability.
 - Session completion toast on finish.
 - Phases (blocks) for plans, with active phase selection and phase-aware next workout.
+- Plan archive + restore (archived plans hidden from Home and Analytics).
 - Tab bar navigation (Home + Analytics tabs).
 - Analytics screen:
-  - Exercise progress (1RM) over time
-  - Plan strength score and volume over time
+  - Exercise progress (estimated 1RM) over time with chart inspection
+  - Exercise pinning in the analytics selector
+  - Plan strength score and volume over time (per plan cycle), auto-scaled charts + inspection
+- StoreKit 2 paywall that gates Analytics + History and prevents saving completed sessions without Pro
+- Editing:
+  - Rename plan + edit description
+  - Rename workout + edit notes
+  - Rename phase + edit notes
+  - Edit exercises (name, weights, reps, sets, notes)
+- Multi-select + reorder:
+  - Reorder workouts and exercises via drag in edit mode
+  - Multi-select workouts/exercises to move, copy, or delete (enter selection from the `…` menu; selection bar sits above the tab bar)
+  - Move workouts between phases
+  - Move exercises between workouts
+- Clipboard:
+  - Copy workouts (with exercises) and paste into plans/phases
+  - Copy exercises and paste into workouts
+  - Copy all workouts/exercises from the menu
 
 ## Planned / In-Scope Next Steps
 
@@ -44,8 +65,7 @@ These are **intended features**, not yet implemented:
   - Pro (one-time purchase): persistent history + analytics
   - Data only starts being saved **after** purchase; no retroactive history
   - In-progress session data should persist even if the app is backgrounded or closed
-- Plan comparison view
-- Phase management polish (multi-select move/copy, phase rename)
+- Plan comparison view (later release)
 
 ## MVP Roadmap (Checklist)
 
@@ -66,38 +86,37 @@ Logging
 - [x] Per-set logging UI (weight + reps)
 - [x] Show last performance for the **same workout/day** (exercise template) to guide weight selection
 - [x] Persist session progress during app background/close
-- [ ] Gate history saving behind Pro (currently saves for all users)
+- [x] Gate history saving behind Pro (completed sessions discarded unless Pro)
 - [x] History list of recent workouts with edit capability (without changing original date)
 - [x] Session completed toast
+- [x] Delete confirmations for workouts, phases, and exercises (exercise history kept)
 
 Analytics (Pro)
 - [x] Exercise history graph (per exercise)
 - [x] Global exercise history across all plans (same exercise name aggregates)
-- [x] Plan-level progress graph (strength score + volume)
+- [x] Plan-level progress graph (strength score + volume, per full plan cycle)
 - [ ] Plan comparison view
 
 Monetization
-- [ ] One-time purchase paywall gating history + analytics
+- [x] One-time purchase paywall gating history + analytics (StoreKit 2 wired)
 
 ## Next Up (Prioritized)
 
-1. Add paywall gating for history saving + analytics (one-time purchase).
-2. Plan comparison view (side-by-side or overlay charts).
-3. Phase management polish:
-   - Rename phase
-   - Multi-select move/copy workouts between phases
-4. Exercise search + selector polish in Analytics (filters, favorites).
+1. App Store Connect product setup + pricing validation.
+2. Plan comparison view (later release).
+3. Long-term migration strategy (SwiftData schema changes).
 
 ## Model Files
 
 ### Core Models
 - `WorkoutPlan.swift` -- top-level program container (includes `isActive`)
+- `WorkoutPlan.swift` -- top-level program container (includes `isActive`, `isArchived`)
 - `PlanPhase.swift` -- phase/block within a plan (includes `isActive`, linked via `planId`)
 - `Workout.swift` -- workout day within a plan (linked via `planId`, optionally `phaseId`)
 - `ExerciseDefinition.swift` -- canonical exercise catalog entry (case-insensitive unique)
 - `Exercise.swift` -- exercise template within a workout (has `workoutId` for queries + `@Relationship` for cascade delete)
 - `WorkoutSession.swift` -- completed workout instance (historical record)
-- `ExerciseLog.swift` -- logged exercise data (weight + reps per set, has `sessionId` for queries + `@Relationship` for cascade delete)
+- `ExerciseLog.swift` -- logged exercise data (weight + reps per set, reps stored as encoded data, has `sessionId` for queries + `@Relationship` for cascade delete)
 - `BodyWeightLog.swift` -- body weight tracking over time
 
 ### Utilities
@@ -135,5 +154,6 @@ The app currently uses **local SwiftData persistence** via `ModelContainer.share
 - `ExerciseLog` references `ExerciseDefinition` for consistent analytics across plans.
 - `normalizedName` is used to match exercises ignoring case and extra whitespace.
 - `orderIndex` fields maintain stable ordering for workouts and exercises.
+- Archived plans are excluded from Home and Analytics.
 - **Never use relationship traversal in `#Predicate`** (e.g., `$0.workout?.id`). Always use plain UUID fields (e.g., `$0.workoutId`). See INSTRUCTIONS.md for details.
 - **Avoid `@Query` in views pushed by NavigationLink.** Use `FetchDescriptor` + `.onAppear` instead. See INSTRUCTIONS.md for details.

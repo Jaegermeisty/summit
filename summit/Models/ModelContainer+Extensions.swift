@@ -21,19 +21,34 @@ extension ModelContainer {
             ExerciseLog.self,
             BodyWeightLog.self
         ])
-        
+
+        let storeURL = defaultStoreURL()
         let modelConfiguration = ModelConfiguration(
+            "default",
             schema: schema,
             isStoredInMemoryOnly: false
         )
-        
+
         do {
             return try ModelContainer(
                 for: schema,
                 configurations: [modelConfiguration]
             )
         } catch {
+            #if DEBUG
+            // If the store is incompatible during development, recreate it.
+            destroyStore(at: storeURL)
+            do {
+                return try ModelContainer(
+                    for: schema,
+                    configurations: [modelConfiguration]
+                )
+            } catch {
+                fatalError("Could not recreate ModelContainer: \(error)")
+            }
+            #else
             fatalError("Could not create ModelContainer: \(error)")
+            #endif
         }
     }()
     
@@ -180,4 +195,20 @@ extension ModelContainer {
             fatalError("Could not create preview ModelContainer: \(error)")
         }
     }()
+}
+
+private func defaultStoreURL() -> URL {
+    let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+    let baseURL = appSupport.first ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+    try? FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
+    return baseURL.appendingPathComponent("default.store")
+}
+
+private func destroyStore(at url: URL) {
+    let fm = FileManager.default
+    let basePath = url.path
+    let sidecars = [basePath, basePath + "-shm", basePath + "-wal"]
+    for path in sidecars {
+        try? fm.removeItem(atPath: path)
+    }
 }

@@ -73,7 +73,7 @@ struct DataHelpers {
     static func activeWorkoutPlan(in context: ModelContext) -> WorkoutPlan? {
         let descriptor = FetchDescriptor<WorkoutPlan>(
             predicate: #Predicate<WorkoutPlan> { plan in
-                plan.isActive == true
+                plan.isActive == true && plan.isArchived == false
             },
             sortBy: [SortDescriptor(\WorkoutPlan.createdAt, order: .reverse)]
         )
@@ -448,5 +448,26 @@ struct DataHelpers {
             return loggedWeight
         }
         return lastExerciseTemplate(for: definition, in: context)?.targetWeight
+    }
+
+    /// Fetch or create a canonical exercise definition by name
+    static func definition(
+        named name: String,
+        in context: ModelContext
+    ) -> ExerciseDefinition {
+        let normalized = ExerciseDefinition.normalize(name)
+        let descriptor = FetchDescriptor<ExerciseDefinition>(
+            predicate: #Predicate<ExerciseDefinition> { def in
+                def.normalizedName == normalized
+            }
+        )
+
+        if let existing = try? context.fetch(descriptor).first {
+            return existing
+        }
+
+        let created = ExerciseDefinition(name: name)
+        context.insert(created)
+        return created
     }
 }

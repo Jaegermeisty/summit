@@ -15,6 +15,7 @@ final class PlanPhase: Identifiable {
     var orderIndex: Int
     var createdAt: Date
     var isActive: Bool
+    var notes: String?
     var planId: UUID?
 
     init(
@@ -23,6 +24,7 @@ final class PlanPhase: Identifiable {
         orderIndex: Int = 0,
         createdAt: Date = Date(),
         isActive: Bool = false,
+        notes: String? = nil,
         planId: UUID? = nil
     ) {
         self.id = id
@@ -30,6 +32,7 @@ final class PlanPhase: Identifiable {
         self.orderIndex = orderIndex
         self.createdAt = createdAt
         self.isActive = isActive
+        self.notes = notes
         self.planId = planId
     }
 }
