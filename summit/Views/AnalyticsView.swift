@@ -44,43 +44,18 @@ struct AnalyticsView: View {
     @State private var selectedPlanVolumePoint: PlanMetricPoint?
 
     var body: some View {
-        VStack(spacing: 16) {
+        Group {
             if purchaseManager.isPro {
-                Picker("Mode", selection: $mode) {
-                    ForEach(AnalyticsMode.allCases) { option in
-                        Text(option.rawValue).tag(option)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-            }
-
-            if purchaseManager.isPro {
-                if mode == .exercise {
-                    exerciseSection
-                } else {
-                    planSection
-                }
+                analyticsContent
             } else {
                 analyticsPaywall
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-
-            Spacer()
         }
-        .background(Color.summitBackground)
         .navigationTitle("Analytics")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(Color.summitBackground, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Summit")
-                    .font(.system(size: 18, weight: .bold))
-                    .italic()
-                    .foregroundStyle(Color.summitOrange)
-                    .fixedSize()
-            }
-        }
         .onAppear {
             if selectedExerciseId == nil {
                 selectedExerciseId = definitions.first?.id
@@ -111,132 +86,181 @@ struct AnalyticsView: View {
         }
     }
 
+    private var analyticsContent: some View {
+        ZStack {
+            analyticsBackground
+
+            ScrollView {
+                VStack(spacing: 20) {
+                    analyticsModePicker
+
+                    if mode == .exercise {
+                        exerciseSection
+                    } else {
+                        planSection
+                    }
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 32)
+            }
+        }
+    }
+
     private var exerciseSection: some View {
         let pinnedIds = pinnedExerciseIds
 
         return VStack(spacing: 16) {
-            HStack(spacing: 12) {
-                HStack(spacing: 6) {
-                    Text("Exercise")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                    Button {
-                        showingExerciseInfo = true
-                    } label: {
-                        Image(systemName: "questionmark.circle")
+            infoCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 6) {
+                        Text("Exercise")
+                            .font(.custom("Avenir Next", size: 14))
                             .foregroundStyle(Color.summitTextSecondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Spacer(minLength: 12)
-
-                HStack(spacing: 8) {
-                    Button {
-                        showingExercisePicker = true
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text(selectedExerciseName)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption)
+                        Button {
+                            showingExerciseInfo = true
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundStyle(Color.summitTextSecondary)
                         }
-                        .foregroundStyle(Color.summitOrange)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
 
-                    Button {
-                        togglePinForSelectedExercise()
-                    } label: {
-                        Image(systemName: isSelectedExercisePinned ? "pin.slash" : "pin")
-                            .foregroundStyle(isSelectedExercisePinned ? Color.summitTextSecondary : Color.summitOrange)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(selectedExerciseId == nil)
-                }
-            }
-            .padding(.horizontal)
-
-            if exerciseSeries.isEmpty {
-                ContentUnavailableView {
-                    Label("No Exercise Data", systemImage: "chart.line.uptrend.xyaxis")
-                } description: {
-                    Text("Complete a workout to see your progress here")
-                }
-                .padding(.top, 20)
-            } else {
-                Chart(exerciseSeries) { point in
-                    LineMark(
-                        x: .value("Date", point.date),
-                        y: .value("1RM", point.oneRepMax)
-                    )
-                    PointMark(
-                        x: .value("Date", point.date),
-                        y: .value("1RM", point.oneRepMax)
-                    )
-
-                    if let selected = selectedExercisePoint {
-                        RuleMark(x: .value("Date", selected.date))
-                            .foregroundStyle(Color.summitOrange.opacity(0.3))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-
-                        PointMark(
-                            x: .value("Date", selected.date),
-                            y: .value("1RM", selected.oneRepMax)
-                        )
-                        .symbolSize(60)
-                        .foregroundStyle(Color.summitOrange)
-                        .annotation(position: .top, alignment: .leading) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(selected.date, format: .dateTime.month().day())
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.summitTextSecondary)
-                                Text("\(Int(selected.oneRepMax)) 1RM")
+                    HStack(spacing: 10) {
+                        Button {
+                            showingExercisePicker = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(selectedExerciseName)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                    .font(.custom("Avenir Next", size: 16))
+                                Image(systemName: "chevron.up.chevron.down")
                                     .font(.caption)
-                                    .foregroundStyle(Color.summitText)
                             }
-                            .padding(6)
+                            .foregroundStyle(Color.summitText)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
                             .background(
-                                RoundedRectangle(cornerRadius: 6)
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .fill(Color.summitCardElevated)
                             )
                         }
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: .automatic) { value in
-                        AxisValueLabel(format: .dateTime.month().day())
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(position: .leading)
-                }
-                .chartOverlay { proxy in
-                    GeometryReader { geometry in
-                        if let plotFrameAnchor = proxy.plotFrame {
-                            let plotFrame = geometry[plotFrameAnchor]
-                            Rectangle()
-                                .fill(Color.clear)
-                                .contentShape(Rectangle())
-                                .gesture(
-                                    DragGesture(minimumDistance: 0)
-                                        .onChanged { value in
-                                            let x = value.location.x - plotFrame.origin.x
-                                            guard x >= 0, x <= plotFrame.size.width else { return }
-                                            if let date: Date = proxy.value(atX: x) {
-                                                selectedExercisePoint = nearestExercisePoint(to: date)
-                                            }
-                                        }
-                                        .onEnded { _ in
-                                            selectedExercisePoint = nil
-                                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            togglePinForSelectedExercise()
+                        } label: {
+                            Image(systemName: isSelectedExercisePinned ? "pin.slash" : "pin")
+                                .foregroundStyle(isSelectedExercisePinned ? Color.summitTextSecondary : Color.summitOrange)
+                                .padding(8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.summitCardElevated)
                                 )
                         }
+                        .buttonStyle(.plain)
+                        .disabled(selectedExerciseId == nil)
                     }
                 }
-                .frame(height: 260)
-                .padding(.horizontal)
+            }
+            .padding(.horizontal, 16)
+
+            if exerciseSeries.isEmpty {
+                infoCard {
+                    ContentUnavailableView {
+                        Label("No Exercise Data", systemImage: "chart.line.uptrend.xyaxis")
+                            .foregroundStyle(Color.summitText)
+                    } description: {
+                        Text("Complete a workout to see your progress here")
+                            .foregroundStyle(Color.summitTextSecondary)
+                    }
+                }
+                .padding(.horizontal, 16)
+            } else {
+                infoCard {
+                    Chart(exerciseSeries) { point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("1RM", point.oneRepMax)
+                        )
+                        .foregroundStyle(Color.summitOrange)
+
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("1RM", point.oneRepMax)
+                        )
+                        .foregroundStyle(Color.summitOrange)
+
+                        if let selected = selectedExercisePoint {
+                            RuleMark(x: .value("Date", selected.date))
+                                .foregroundStyle(Color.summitOrange.opacity(0.3))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+
+                            PointMark(
+                                x: .value("Date", selected.date),
+                                y: .value("1RM", selected.oneRepMax)
+                            )
+                            .symbolSize(60)
+                            .foregroundStyle(Color.summitOrange)
+                            .annotation(position: .top, alignment: .leading) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(selected.date, format: .dateTime.month().day())
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.summitTextSecondary)
+                                    Text("\(Int(selected.oneRepMax)) 1RM")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.summitText)
+                                }
+                                .padding(6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.summitCardElevated)
+                                )
+                            }
+                        }
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: .automatic) { _ in
+                            AxisGridLine()
+                                .foregroundStyle(Color.summitTextTertiary.opacity(0.2))
+                            AxisValueLabel(format: .dateTime.month().day())
+                                .foregroundStyle(Color.summitTextSecondary)
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading) { _ in
+                            AxisGridLine()
+                                .foregroundStyle(Color.summitTextTertiary.opacity(0.2))
+                            AxisValueLabel()
+                                .foregroundStyle(Color.summitTextSecondary)
+                        }
+                    }
+                    .chartOverlay { proxy in
+                        GeometryReader { geometry in
+                            if let plotFrameAnchor = proxy.plotFrame {
+                                let plotFrame = geometry[plotFrameAnchor]
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .contentShape(Rectangle())
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0)
+                                            .onChanged { value in
+                                                let x = value.location.x - plotFrame.origin.x
+                                                guard x >= 0, x <= plotFrame.size.width else { return }
+                                                if let date: Date = proxy.value(atX: x) {
+                                                    selectedExercisePoint = nearestExercisePoint(to: date)
+                                                }
+                                            }
+                                            .onEnded { _ in
+                                                selectedExercisePoint = nil
+                                            }
+                                    )
+                            }
+                        }
+                    }
+                    .frame(height: 240)
+                }
+                .padding(.horizontal, 16)
             }
         }
         .alert("Exercise Progress", isPresented: $showingExerciseInfo) {
@@ -251,35 +275,56 @@ struct AnalyticsView: View {
 
     private var planSection: some View {
         VStack(spacing: 16) {
-            HStack {
-                Text("Plan")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
+            infoCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Plan")
+                        .font(.custom("Avenir Next", size: 14))
+                        .foregroundStyle(Color.summitTextSecondary)
 
-                Spacer()
-
-                Picker("Plan", selection: $selectedPlanId) {
-                    Text("Select Plan").tag(Optional<UUID>.none)
-                    ForEach(plans) { plan in
-                        Text(plan.name).tag(Optional(plan.id))
+                    Menu {
+                        ForEach(plans) { plan in
+                            Button(plan.name) {
+                                selectedPlanId = plan.id
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(selectedPlanName)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .font(.custom("Avenir Next", size: 16))
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(Color.summitText)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.summitCardElevated)
+                        )
                     }
+                    .buttonStyle(.plain)
                 }
-                .pickerStyle(.menu)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
 
             if planSeries.isEmpty {
-                ContentUnavailableView {
-                    Label("No Plan Data", systemImage: "chart.bar.xaxis")
-                } description: {
-                    Text("Complete workouts in this plan to see progress")
+                infoCard {
+                    ContentUnavailableView {
+                        Label("No Plan Data", systemImage: "chart.bar.xaxis")
+                            .foregroundStyle(Color.summitText)
+                    } description: {
+                        Text("Complete workouts in this plan to see progress")
+                            .foregroundStyle(Color.summitTextSecondary)
+                    }
                 }
-                .padding(.top, 20)
+                .padding(.horizontal, 16)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 6) {
                         Text("Plan Strength Score")
-                            .font(.subheadline)
+                            .font(.custom("Avenir Next", size: 14))
                             .foregroundStyle(Color.summitTextSecondary)
                         Button {
                             showingPlanStrengthInfo = true
@@ -289,13 +334,16 @@ struct AnalyticsView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
 
-                    strengthChart
+                    infoCard {
+                        strengthChart
+                    }
+                    .padding(.horizontal, 16)
 
                     HStack(spacing: 6) {
                         Text("Plan Volume")
-                            .font(.subheadline)
+                            .font(.custom("Avenir Next", size: 14))
                             .foregroundStyle(Color.summitTextSecondary)
                         Button {
                             showingPlanVolumeInfo = true
@@ -305,9 +353,12 @@ struct AnalyticsView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
 
-                    volumeChart
+                    infoCard {
+                        volumeChart
+                    }
+                    .padding(.horizontal, 16)
                 }
             }
         }
@@ -382,66 +433,57 @@ struct AnalyticsView: View {
         return definitions.first(where: { $0.id == selectedExerciseId })?.name ?? "Select Exercise"
     }
 
+    private var selectedPlanName: String {
+        guard let selectedPlanId else { return "Select Plan" }
+        return plans.first(where: { $0.id == selectedPlanId })?.name ?? "Select Plan"
+    }
+
     private func exercisePickerSheet(pinnedIds: Set<UUID>) -> some View {
         let pinned = definitions.filter { pinnedIds.contains($0.id) }
         let unpinned = definitions.filter { !pinnedIds.contains($0.id) }
 
         return NavigationStack {
-            List {
-                if !pinned.isEmpty {
-                    Section("Pinned") {
-                        ForEach(pinned) { definition in
-                            Button {
-                                selectedExerciseId = definition.id
-                                showingExercisePicker = false
-                            } label: {
-                                HStack {
-                                    Label(definition.name, systemImage: "pin.fill")
-                                    Spacer()
-                                    if selectedExerciseId == definition.id {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(Color.summitOrange)
-                                    }
-                                }
+            ZStack {
+                analyticsBackground
+
+                List {
+                    if !pinned.isEmpty {
+                        Section {
+                            ForEach(pinned) { definition in
+                                exercisePickerRow(definition, pinned: true)
                             }
-                            .listRowBackground(Color.summitCard)
+                        } header: {
+                            sectionHeader(title: "Pinned")
                         }
                     }
-                }
 
-                if !unpinned.isEmpty {
-                    Section(pinned.isEmpty ? "Exercises" : "All Exercises") {
-                        ForEach(unpinned) { definition in
-                            Button {
-                                selectedExerciseId = definition.id
-                                showingExercisePicker = false
-                            } label: {
-                                HStack {
-                                    Text(definition.name)
-                                    Spacer()
-                                    if selectedExerciseId == definition.id {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(Color.summitOrange)
-                                    }
-                                }
+                    if !unpinned.isEmpty {
+                        Section {
+                            ForEach(unpinned) { definition in
+                                exercisePickerRow(definition, pinned: false)
                             }
-                            .listRowBackground(Color.summitCard)
+                        } header: {
+                            sectionHeader(title: pinned.isEmpty ? "Exercises" : "All Exercises")
                         }
                     }
-                }
 
-                if pinned.isEmpty && unpinned.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Exercises", systemImage: "dumbbell")
-                    } description: {
-                        Text("Add exercises to see them here.")
+                    if pinned.isEmpty && unpinned.isEmpty {
+                        infoCard {
+                            ContentUnavailableView {
+                                Label("No Exercises", systemImage: "dumbbell")
+                                    .foregroundStyle(Color.summitText)
+                            } description: {
+                                Text("Add exercises to see them here.")
+                                    .foregroundStyle(Color.summitTextSecondary)
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
-                    .listRowBackground(Color.clear)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Color.summitBackground)
             .navigationTitle("Choose Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
@@ -462,10 +504,12 @@ struct AnalyticsView: View {
                 x: .value("Date", point.date),
                 y: .value("Strength", point.strengthScore)
             )
+            .foregroundStyle(Color.summitOrange)
             PointMark(
                 x: .value("Date", point.date),
                 y: .value("Strength", point.strengthScore)
             )
+            .foregroundStyle(Color.summitOrange)
 
             if let selected = selectedPlanStrengthPoint {
                 RuleMark(x: .value("Date", selected.date))
@@ -496,12 +540,20 @@ struct AnalyticsView: View {
             }
         }
         .chartXAxis {
-            AxisMarks(values: .automatic) { value in
+            AxisMarks(values: .automatic) { _ in
+                AxisGridLine()
+                    .foregroundStyle(Color.summitTextTertiary.opacity(0.2))
                 AxisValueLabel(format: .dateTime.month().day())
+                    .foregroundStyle(Color.summitTextSecondary)
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading)
+            AxisMarks(position: .leading) { _ in
+                AxisGridLine()
+                    .foregroundStyle(Color.summitTextTertiary.opacity(0.2))
+                AxisValueLabel()
+                    .foregroundStyle(Color.summitTextSecondary)
+            }
         }
         .chartYScale(domain: planStrengthDomain)
         .chartOverlay { proxy in
@@ -528,7 +580,6 @@ struct AnalyticsView: View {
             }
         }
         .frame(height: 220)
-        .padding(.horizontal)
     }
 
     private var volumeChart: some View {
@@ -537,10 +588,12 @@ struct AnalyticsView: View {
                 x: .value("Date", point.date),
                 y: .value("Volume", point.volume)
             )
+            .foregroundStyle(Color.summitOrange)
             PointMark(
                 x: .value("Date", point.date),
                 y: .value("Volume", point.volume)
             )
+            .foregroundStyle(Color.summitOrange)
 
             if let selected = selectedPlanVolumePoint {
                 RuleMark(x: .value("Date", selected.date))
@@ -571,12 +624,20 @@ struct AnalyticsView: View {
             }
         }
         .chartXAxis {
-            AxisMarks(values: .automatic) { value in
+            AxisMarks(values: .automatic) { _ in
+                AxisGridLine()
+                    .foregroundStyle(Color.summitTextTertiary.opacity(0.2))
                 AxisValueLabel(format: .dateTime.month().day())
+                    .foregroundStyle(Color.summitTextSecondary)
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading)
+            AxisMarks(position: .leading) { _ in
+                AxisGridLine()
+                    .foregroundStyle(Color.summitTextTertiary.opacity(0.2))
+                AxisValueLabel()
+                    .foregroundStyle(Color.summitTextSecondary)
+            }
         }
         .chartYScale(domain: planVolumeDomain)
         .chartOverlay { proxy in
@@ -603,7 +664,127 @@ struct AnalyticsView: View {
             }
         }
         .frame(height: 220)
-        .padding(.horizontal)
+    }
+
+    private var analyticsModePicker: some View {
+        HStack(spacing: 8) {
+            ForEach(AnalyticsMode.allCases) { option in
+                Button {
+                    mode = option
+                } label: {
+                    Text(option.rawValue)
+                        .font(.custom("Avenir Next", size: 14))
+                        .fontWeight(mode == option ? .semibold : .regular)
+                        .foregroundStyle(mode == option ? Color.summitText : Color.summitTextSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(mode == option ? Color.summitCardElevated : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 16)
+    }
+
+    private func exercisePickerRow(_ definition: ExerciseDefinition, pinned: Bool) -> some View {
+        Button {
+            selectedExerciseId = definition.id
+            showingExercisePicker = false
+        } label: {
+            HStack(spacing: 12) {
+                if pinned {
+                    Image(systemName: "pin.fill")
+                        .foregroundStyle(Color.summitOrange)
+                }
+                Text(definition.name)
+                    .font(.custom("Avenir Next", size: 15))
+                    .foregroundStyle(Color.summitText)
+                Spacer()
+                if selectedExerciseId == definition.id {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(Color.summitOrange)
+                }
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.summitCard)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
+    private var analyticsBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.12))
+                .frame(width: 260, height: 260)
+                .blur(radius: 70)
+                .offset(x: 150, y: -160)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func sectionHeader(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .font(.custom("Avenir Next", size: 12))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitTextSecondary)
+
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.summitOrange, Color.summitOrange.opacity(0.3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 2)
+                .cornerRadius(1)
+        }
+        .padding(.bottom, 4)
+    }
+
+    private func infoCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.summitCard)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                    )
+            )
     }
 
     private func reloadExerciseSeries() {
@@ -668,7 +849,7 @@ struct AnalyticsView: View {
             let volume = cycleSessions.reduce(0.0) { total, session in
                 let logs = DataHelpers.logs(for: session, in: modelContext)
                 return total + logs.reduce(0.0) { partial, log in
-                    partial + (log.weight * Double(log.reps.reduce(0, +)))
+                    partial + (log.effectiveLoad * Double(log.reps.reduce(0, +)))
                 }
             }
             let cycleDate = cycleSessions.map(\.date).max() ?? Date()

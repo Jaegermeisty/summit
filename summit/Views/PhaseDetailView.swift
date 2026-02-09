@@ -35,14 +35,15 @@ struct PhaseDetailView: View {
     @State private var editMode: EditMode = .inactive
 
     var body: some View {
-        contentList
-            .scrollContentBackground(.hidden)
-            .background(Color.summitBackground)
-            .navigationTitle(phase.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .environment(\.editMode, $editMode)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+        ZStack {
+            phaseBackground
+            contentList
+        }
+        .navigationTitle(phase.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .environment(\.editMode, $editMode)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(Color.summitBackground, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -173,52 +174,57 @@ struct PhaseDetailView: View {
             phaseHeaderSection
             workoutsSection
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
     }
 
     private var phaseHeaderSection: some View {
         Section {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(phase.name)
-                        .font(.headline)
-                        .foregroundStyle(Color.summitText)
+            infoCard {
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(phase.name)
+                            .font(.custom("Avenir Next", size: 18))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.summitText)
 
-                    Text("\(workouts.count) workout\(workouts.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextSecondary)
-
-                    if let notes = phase.notes, !notes.isEmpty {
-                        Text(notes)
-                            .font(.caption)
+                        Text("\(workouts.count) workout\(workouts.count == 1 ? "" : "s")")
+                            .font(.custom("Avenir Next", size: 12))
                             .foregroundStyle(Color.summitTextSecondary)
-                    }
-                }
 
-                Spacer()
-
-                if phase.isActive {
-                    Text("Active")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(Color.summitOrange)
-                        )
-                } else {
-                    Button("Set Active") {
-                        setActivePhase()
+                        if let notes = phase.notes, !notes.isEmpty {
+                            Text(notes)
+                                .font(.custom("Avenir Next", size: 12))
+                                .foregroundStyle(Color.summitTextSecondary)
+                        }
                     }
-                    .font(.caption)
-                    .buttonStyle(.bordered)
-                    .tint(Color.summitOrange)
+
+                    Spacer()
+
+                    if phase.isActive {
+                        Text("Active")
+                            .font(.custom("Avenir Next", size: 11))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color.summitOrange)
+                            )
+                    } else {
+                        Button("Set Active") {
+                            setActivePhase()
+                        }
+                        .font(.custom("Avenir Next", size: 12))
+                        .buttonStyle(.bordered)
+                        .tint(Color.summitOrange)
+                    }
                 }
             }
-            .padding(.vertical, 4)
         }
-        .listRowBackground(Color.summitCard)
+        .listRowBackground(Color.clear)
     }
 
     private var workoutsSection: some View {
@@ -254,7 +260,7 @@ struct PhaseDetailView: View {
                         }
                     }
                     .tag(workout.id)
-                    .listRowBackground(Color.summitCard)
+                    .listRowBackground(Color.clear)
                     .contextMenu {
                         if phases.count > 1 {
                             Button {
@@ -281,6 +287,40 @@ struct PhaseDetailView: View {
                     .foregroundStyle(Color.summitTextTertiary)
             }
         }
+    }
+
+    private var phaseBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.14))
+                .frame(width: 220, height: 220)
+                .blur(radius: 60)
+                .offset(x: 140, y: -120)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func infoCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.summitCard)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                    )
+            )
     }
 
     // MARK: - Data Loading

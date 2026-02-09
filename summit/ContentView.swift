@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var planToDelete: WorkoutPlan?
     @State private var showingDeleteConfirmation = false
     @State private var sessionToStart: WorkoutSession?
+    @State private var animateIn = false
 
     private var activePlan: WorkoutPlan? {
         workoutPlans.first(where: { $0.isActive && !$0.isArchived })
@@ -32,11 +33,15 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if workoutPlans.isEmpty {
-                    emptyStateView
-                } else {
-                    mainContentView
+            ZStack {
+                homeBackground
+
+                Group {
+                    if workoutPlans.isEmpty {
+                        emptyStateView
+                    } else {
+                        mainContentView
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -55,7 +60,8 @@ struct ContentView: View {
 
                 ToolbarItem(placement: .principal) {
                     Text("Summit")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.custom("Avenir Next", size: 18))
+                        .fontWeight(.bold)
                         .italic()
                         .foregroundStyle(Color.summitOrange)
                         .fixedSize()
@@ -93,6 +99,11 @@ struct ContentView: View {
             } message: { plan in
                 Text("Are you sure you want to delete '\(plan.name)'? All workouts and exercises in this plan will be permanently deleted. Exercise history will be kept. This cannot be undone.")
             }
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.6)) {
+                    animateIn = true
+                }
+            }
         }
     }
 
@@ -100,9 +111,11 @@ struct ContentView: View {
         ContentUnavailableView {
             Label("No Workout Plans", systemImage: "figure.strengthtraining.traditional")
                 .foregroundStyle(Color.summitText)
+                .font(.custom("Avenir Next", size: 16))
         } description: {
             Text("Create your first workout plan to start tracking your progress")
                 .foregroundStyle(Color.summitTextSecondary)
+                .font(.custom("Avenir Next", size: 14))
         } actions: {
             Button {
                 showingCreatePlan = true
@@ -128,6 +141,8 @@ struct ContentView: View {
                     )
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
+                    .opacity(animateIn ? 1 : 0)
+                    .offset(y: animateIn ? 0 : 14)
                     .contextMenu {
                         Button {
                             archivePlan(active)
@@ -146,24 +161,16 @@ struct ContentView: View {
                     ContentUnavailableView {
                         Label("No Active Plan", systemImage: "flag.circle")
                             .foregroundStyle(Color.summitText)
+                            .font(.custom("Avenir Next", size: 16))
                     } description: {
                         Text("Set a plan as active to show the next workout here")
                             .foregroundStyle(Color.summitTextSecondary)
+                            .font(.custom("Avenir Next", size: 14))
                     }
                     .listRowBackground(Color.clear)
                 }
             } header: {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Active Plan")
-                        .textCase(nil)
-                        .font(.headline)
-                        .foregroundStyle(Color.summitText)
-
-                    Rectangle()
-                        .fill(Color.summitOrange)
-                        .frame(height: 2)
-                }
-                .padding(.bottom, 4)
+                sectionHeader(title: "Active Plan")
             }
 
             if !otherPlans.isEmpty {
@@ -172,7 +179,7 @@ struct ContentView: View {
                         NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
                             PlanRowView(plan: plan)
                         }
-                        .listRowBackground(Color.summitCard)
+                        .listRowBackground(Color.clear)
                         .contextMenu {
                             Button {
                                 setActivePlan(plan)
@@ -193,17 +200,13 @@ struct ContentView: View {
                                 Label("Delete Plan", systemImage: "trash")
                             }
                         }
+                        .opacity(animateIn ? 1 : 0)
+                        .offset(y: animateIn ? 0 : 10)
+                        .animation(.easeOut(duration: 0.5).delay(0.05), value: animateIn)
                     }
                     .onDelete(perform: deleteOtherPlans)
                 } header: {
-                    Text("Other Plans")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("Swipe left to delete • Long press to set active")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
+                    sectionHeader(title: "Other Plans")
                 }
             }
 
@@ -213,7 +216,7 @@ struct ContentView: View {
                         NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
                             PlanRowView(plan: plan)
                         }
-                        .listRowBackground(Color.summitCard)
+                        .listRowBackground(Color.clear)
                         .contextMenu {
                             Button {
                                 restorePlan(plan)
@@ -234,22 +237,66 @@ struct ContentView: View {
                                 Label("Delete Plan", systemImage: "trash")
                             }
                         }
+                        .opacity(animateIn ? 1 : 0)
+                        .offset(y: animateIn ? 0 : 10)
+                        .animation(.easeOut(duration: 0.5).delay(0.08), value: animateIn)
                     }
                     .onDelete(perform: deleteArchivedPlans)
                 } header: {
-                    Text("Archived Plans")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("Archived plans are hidden from Home but can be restored later")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
+                    sectionHeader(title: "Archived Plans")
                 }
             }
         }
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color.summitBackground)
+        .background(Color.clear)
+    }
+
+    private var homeBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.18))
+                .frame(width: 260, height: 260)
+                .blur(radius: 60)
+                .offset(x: 160, y: -120)
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.08))
+                .frame(width: 220, height: 220)
+                .blur(radius: 80)
+                .offset(x: -160, y: 220)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func sectionHeader(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .font(.custom("Avenir Next", size: 13))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitTextSecondary)
+
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.summitOrange, Color.summitOrange.opacity(0.3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 2)
+                .cornerRadius(1)
+        }
+        .padding(.bottom, 4)
     }
 
     private func deleteOtherPlans(at offsets: IndexSet) {
@@ -352,59 +399,69 @@ struct PlanRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(plan.name)
-                    .font(.headline)
-                    .foregroundStyle(Color.summitText)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(plan.isActive ? Color.summitOrange : Color.summitOrange.opacity(0.4))
+                    .frame(width: 6)
 
-                if plan.isArchived {
-                    Spacer()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(plan.name)
+                            .font(.custom("Avenir Next", size: 18))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.summitText)
 
-                    Text("Archived")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(Color.gray)
-                        )
-                } else if plan.isActive {
-                    Spacer()
+                        Spacer()
 
-                    Text("Active")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(Color.summitOrange)
-                        )
+                        if plan.isArchived {
+                            statusPill(title: "Archived", color: Color.gray)
+                        } else if plan.isActive {
+                            statusPill(title: "Active", color: Color.summitOrange)
+                        }
+                    }
+
+                    if let description = plan.planDescription {
+                        Text(description)
+                            .font(.custom("Avenir Next", size: 13))
+                            .foregroundStyle(Color.summitTextSecondary)
+                            .lineLimit(2)
+                    }
+
+                    HStack(spacing: 10) {
+                        Label("\(workouts.count)", systemImage: "list.bullet")
+                            .font(.custom("Avenir Next", size: 12))
+                            .foregroundStyle(Color.summitTextTertiary)
+
+                        Text(workouts.count == 1 ? "workout" : "workouts")
+                            .font(.custom("Avenir Next", size: 12))
+                            .foregroundStyle(Color.summitTextTertiary)
+                    }
                 }
             }
-
-            if let description = plan.planDescription {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
-                    .lineLimit(2)
-            }
-
-            HStack(spacing: 12) {
-                Label("\(workouts.count)", systemImage: "list.bullet")
-                    .font(.caption)
-                    .foregroundStyle(Color.summitTextTertiary)
-
-                Text(workouts.count == 1 ? "workout" : "workouts")
-                    .font(.caption)
-                    .foregroundStyle(Color.summitTextTertiary)
-            }
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private func statusPill(title: String, color: Color) -> some View {
+        Text(title)
+            .font(.custom("Avenir Next", size: 11))
+            .fontWeight(.semibold)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(color)
+            )
     }
 }
 
@@ -484,76 +541,74 @@ struct ActivePlanCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
-                    HStack {
-                        Text(plan.name)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(Color.summitText)
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
+                        HStack(spacing: 6) {
+                            Text(plan.name)
+                                .font(.custom("Avenir Next", size: 24))
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color.summitText)
 
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.body)
-                            .foregroundStyle(Color.summitTextSecondary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(Color.summitTextSecondary)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
-                if let description = plan.planDescription {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                        .lineLimit(2)
-                }
+                Spacer()
 
                 if let phaseName = activePhaseName {
-                    Text("Phase: \(phaseName)")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.summitTextSecondary)
+                    infoChip(text: phaseName, icon: "flag.checkered")
                 }
+            }
 
-                HStack(spacing: 12) {
-                    Label("\(workouts.count)", systemImage: "list.bullet")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
+            if let description = plan.planDescription {
+                Text(description)
+                    .font(.custom("Avenir Next", size: 14))
+                    .foregroundStyle(Color.summitTextSecondary)
+                    .lineLimit(2)
+            }
 
-                    Text(workouts.count == 1 ? "workout" : "workouts")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
+            HStack(spacing: 10) {
+                infoChip(text: "\(workouts.count) workouts", icon: "list.bullet")
+                infoChip(text: "\(sessions.count) sessions", icon: "clock")
             }
 
             if let workout = nextWorkout {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Next Workout")
-                        .font(.caption)
+                    Text("Next Up")
+                        .font(.custom("Avenir Next", size: 12))
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.summitTextTertiary)
                         .textCase(.uppercase)
 
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(workout.name)
-                                .font(.headline)
-                                .foregroundStyle(Color.summitText)
+                    Text(workout.name)
+                        .font(.custom("Avenir Next", size: 18))
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.summitText)
 
-                            Text("\(workout.exercises.count) exercise\(workout.exercises.count == 1 ? "" : "s")")
-                                .font(.caption)
-                                .foregroundStyle(Color.summitTextSecondary)
-                        }
-
-                        Spacer()
-                    }
+                    Text("\(workout.exercises.count) exercise\(workout.exercises.count == 1 ? "" : "s")")
+                        .font(.custom("Avenir Next", size: 12))
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity)
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.summitOrange.opacity(0.15))
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.summitOrange.opacity(0.18),
+                                    Color.summitCardElevated.opacity(0.6)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                 )
 
                 Button {
@@ -562,27 +617,61 @@ struct ActivePlanCardView: View {
                     HStack {
                         Spacer()
                         Label("Start Workout", systemImage: "play.fill")
+                            .font(.custom("Avenir Next", size: 16))
                             .fontWeight(.semibold)
                             .foregroundStyle(.white)
                         Spacer()
                     }
                     .padding(.vertical, 14)
                 }
-                .background(Color.summitOrange)
-                .cornerRadius(10)
+                .background(
+                    LinearGradient(
+                        colors: [Color.summitOrange, Color(hex: "#FF6A00")],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .shadow(color: Color.summitOrange.opacity(0.35), radius: 10, x: 0, y: 6)
                 .buttonStyle(.plain)
             } else {
                 Text("Add workouts to this plan to get started")
-                    .font(.subheadline)
+                    .font(.custom("Avenir Next", size: 14))
                     .foregroundStyle(Color.summitTextSecondary)
                     .padding(.vertical, 8)
             }
         }
         .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.summitCardElevated)
-                .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 4)
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.summitCardElevated, Color.summitCard],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(Color.summitOrange.opacity(0.18), lineWidth: 1)
+            }
+        )
+    }
+
+    private func infoChip(text: String, icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption2)
+            Text(text)
+                .font(.custom("Avenir Next", size: 11))
+        }
+        .foregroundStyle(Color.summitTextSecondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color.summitCard)
         )
     }
 }

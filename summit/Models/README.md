@@ -40,7 +40,12 @@ The app should make it effortless to train from the **active plan**:
   - Exercise progress (estimated 1RM) over time with chart inspection
   - Exercise pinning in the analytics selector
   - Plan strength score and volume over time (per plan cycle), auto-scaled charts + inspection
+- Bodyweight support:
+  - Mark exercises as bodyweight with an adjustable factor (e.g., push-ups default 0.70)
+  - Per-session bodyweight entry with optional external weight
+  - Analytics/plan scores use effective load (bodyweight × factor + external)
 - StoreKit 2 paywall that gates Analytics + History and prevents saving completed sessions without Pro
+- StoreKit config file works locally; sandbox auth on simulator can be flaky (validate on device/TestFlight before release)
 - Editing:
   - Rename plan + edit description
   - Rename workout + edit notes
@@ -66,6 +71,7 @@ These are **intended features**, not yet implemented:
   - Data only starts being saved **after** purchase; no retroactive history
   - In-progress session data should persist even if the app is backgrounded or closed
 - Plan comparison view (later release)
+- Long-term migration strategy (SwiftData schema changes)
 
 ## MVP Roadmap (Checklist)
 
@@ -102,9 +108,10 @@ Monetization
 
 ## Next Up (Prioritized)
 
-1. App Store Connect product setup + pricing validation.
+1. App Store assets + release prep (icon, launch screen, screenshots, metadata).
 2. Plan comparison view (later release).
 3. Long-term migration strategy (SwiftData schema changes).
+4. Final UI polish pass after assets are in (small spacing/color tweaks).
 
 ## Model Files
 
@@ -114,9 +121,10 @@ Monetization
 - `PlanPhase.swift` -- phase/block within a plan (includes `isActive`, linked via `planId`)
 - `Workout.swift` -- workout day within a plan (linked via `planId`, optionally `phaseId`)
 - `ExerciseDefinition.swift` -- canonical exercise catalog entry (case-insensitive unique)
+- `ExerciseDefinition.swift` -- includes bodyweight settings (`usesBodyweight`, `bodyweightFactor`, `lastBodyweightKg`)
 - `Exercise.swift` -- exercise template within a workout (has `workoutId` for queries + `@Relationship` for cascade delete)
 - `WorkoutSession.swift` -- completed workout instance (historical record)
-- `ExerciseLog.swift` -- logged exercise data (weight + reps per set, reps stored as encoded data, has `sessionId` for queries + `@Relationship` for cascade delete)
+- `ExerciseLog.swift` -- logged exercise data (external weight + bodyweight fields + reps per set, reps stored as encoded data, has `sessionId` for queries + `@Relationship` for cascade delete)
 - `BodyWeightLog.swift` -- body weight tracking over time
 
 ### Utilities

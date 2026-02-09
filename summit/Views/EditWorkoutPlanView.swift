@@ -25,32 +25,34 @@ struct EditWorkoutPlanView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Plan Name", text: $planName)
-                        .font(.body)
-                } header: {
-                    Text("Name")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                }
-                .listRowBackground(Color.summitCard)
+            ZStack {
+                formBackground
 
-                Section {
-                    TextField("Description (optional)", text: $planDescription, axis: .vertical)
-                        .lineLimit(3...6)
-                        .font(.body)
-                } header: {
-                    Text("Description")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        formHeader
+
+                        fieldCard(
+                            title: "Name",
+                            helper: "This is the title shown across your plan."
+                        ) {
+                            TextField("Plan Name", text: $planName)
+                                .textInputAutocapitalization(.words)
+                        }
+
+                        fieldCard(
+                            title: "Description",
+                            helper: "Optional notes about your training plan."
+                        ) {
+                            TextField("Description (optional)", text: $planDescription, axis: .vertical)
+                                .lineLimit(3...6)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 30)
                 }
-                .listRowBackground(Color.summitCard)
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.summitBackground)
             .navigationTitle("Edit Plan")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
@@ -73,6 +75,72 @@ struct EditWorkoutPlanView: View {
                 }
             }
         }
+    }
+
+    private var formHeader: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Edit plan")
+                .font(.custom("Avenir Next", size: 22))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitText)
+        }
+    }
+
+    private func fieldCard<Content: View>(
+        title: String,
+        helper: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.custom("Avenir Next", size: 13))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitTextSecondary)
+
+            content()
+                .font(.custom("Avenir Next", size: 16))
+                .foregroundStyle(Color.summitText)
+                .accentColor(Color.summitOrange)
+                .textFieldStyle(.plain)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.summitCardElevated)
+                )
+
+            Text(helper)
+                .font(.custom("Avenir Next", size: 12))
+                .foregroundStyle(Color.summitTextTertiary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private var formBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.12))
+                .frame(width: 240, height: 240)
+                .blur(radius: 60)
+                .offset(x: 140, y: -140)
+        }
+        .ignoresSafeArea()
     }
 
     private func saveChanges() {

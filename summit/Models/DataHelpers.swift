@@ -19,7 +19,7 @@ struct DataHelpers {
         let normalizedName = ExerciseDefinition.normalize(exerciseName)
         let descriptor = FetchDescriptor<ExerciseLog>(
             predicate: #Predicate<ExerciseLog> { log in
-                log.definition.normalizedName == normalizedName
+                log.definition.normalizedName == normalizedName && log.usesBodyweight == true
             },
             sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .reverse)]
         )
@@ -225,10 +225,18 @@ struct DataHelpers {
         let sortedExercises = exercises(for: workout, in: context)
         for (index, exercise) in sortedExercises.enumerated() {
             let reps = Array(repeating: 0, count: exercise.numberOfSets)
+            let definition = exercise.definition
+            let usesBodyweight = definition.usesBodyweight
+            let bodyweightSeed = usesBodyweight
+                ? (DataHelpers.suggestedBodyweight(for: definition, in: context) ?? definition.lastBodyweightKg)
+                : 0
             let log = ExerciseLog(
-                definition: exercise.definition,
+                definition: definition,
                 weight: exercise.targetWeight,
                 reps: reps,
+                usesBodyweight: usesBodyweight,
+                bodyweightKg: bodyweightSeed,
+                bodyweightFactor: definition.bodyweightFactor,
                 orderIndex: index,
                 session: session
             )
@@ -448,6 +456,38 @@ struct DataHelpers {
             return loggedWeight
         }
         return lastExerciseTemplate(for: definition, in: context)?.targetWeight
+    }
+
+    /// Get the most recently logged bodyweight for a canonical exercise
+    static func lastLoggedBodyweight(
+        for definition: ExerciseDefinition,
+        in context: ModelContext
+    ) -> Double? {
+        let normalizedName = definition.normalizedName
+        let descriptor = FetchDescriptor<ExerciseLog>(
+            predicate: #Predicate<ExerciseLog> { log in
+                log.definition.normalizedName == normalizedName
+            },
+            sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .reverse)]
+        )
+
+        do {
+            return try context.fetch(descriptor).first?.bodyweightKg
+        } catch {
+            print("Error fetching last logged bodyweight: \(error)")
+            return nil
+        }
+    }
+
+    /// Suggested bodyweight based on last logged data or stored default
+    static func suggestedBodyweight(
+        for definition: ExerciseDefinition,
+        in context: ModelContext
+    ) -> Double? {
+        if let loggedBodyweight = lastLoggedBodyweight(for: definition, in: context), loggedBodyweight > 0 {
+            return loggedBodyweight
+        }
+        return definition.lastBodyweightKg > 0 ? definition.lastBodyweightKg : nil
     }
 
     /// Fetch or create a canonical exercise definition by name

@@ -50,74 +50,131 @@ struct PaywallView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            if showsClose {
-                HStack {
-                    Spacer()
-                    Button("Close") {
-                        closeAction?()
+        ZStack {
+            paywallBackground
+
+            ScrollView {
+                VStack(spacing: 20) {
+                    if showsClose {
+                        HStack {
+                            Spacer()
+                            Button("Close") {
+                                closeAction?()
+                            }
+                            .foregroundStyle(Color.summitTextSecondary)
+                        }
                     }
-                    .foregroundStyle(Color.summitTextSecondary)
-                }
-            }
 
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.summitText)
+                    VStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.summitOrange.opacity(0.15))
+                                .frame(width: 64, height: 64)
 
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
-                    .multilineTextAlignment(.center)
-            }
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 26, weight: .semibold))
+                                .foregroundStyle(Color.summitOrange)
+                        }
 
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(features, id: \.self) { item in
-                    HStack(spacing: 10) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(Color.summitOrange)
-                        Text(item)
+                        Text(title)
+                            .font(.custom("Avenir Next", size: 24))
+                            .fontWeight(.semibold)
                             .foregroundStyle(Color.summitText)
+
+                        Text(subtitle)
+                            .font(.custom("Avenir Next", size: 14))
+                            .foregroundStyle(Color.summitTextSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(features, id: \.self) { item in
+                            HStack(spacing: 10) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(Color.summitOrange)
+                                Text(item)
+                                    .font(.custom("Avenir Next", size: 14))
+                                    .foregroundStyle(Color.summitText)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color.summitCard)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                            )
+                    )
+
+                    Button {
+                        primaryAction()
+                    } label: {
+                        Text(primaryTitle)
+                            .font(.custom("Avenir Next", size: 16))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.summitBackground)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.summitOrange,
+                                                Color.summitOrange.opacity(0.75)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    if let secondaryTitle, let secondaryAction {
+                        Button(secondaryTitle, role: secondaryRole) {
+                            secondaryAction()
+                        }
+                        .font(.custom("Avenir Next", size: 14))
+                        .foregroundStyle(Color.summitTextSecondary)
+                    }
+
+                    if showsRestore, let restoreAction {
+                        Button("Restore Purchase") {
+                            restoreAction()
+                        }
+                        .font(.custom("Avenir Next", size: 12))
+                        .foregroundStyle(Color.summitTextTertiary)
                     }
                 }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 32)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.summitCard)
+        }
+    }
+
+    private var paywallBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
 
-            Button {
-                primaryAction()
-            } label: {
-                Text(primaryTitle)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.summitOrange)
-
-            if let secondaryTitle, let secondaryAction {
-                Button(secondaryTitle, role: secondaryRole) {
-                    secondaryAction()
-                }
-                .foregroundStyle(Color.summitTextSecondary)
-            }
-
-            if showsRestore, let restoreAction {
-                Button("Restore Purchase") {
-                    restoreAction()
-                }
-                .font(.footnote)
-                .foregroundStyle(Color.summitTextSecondary)
-            }
-
-            Spacer()
+            Circle()
+                .fill(Color.summitOrange.opacity(0.12))
+                .frame(width: 260, height: 260)
+                .blur(radius: 70)
+                .offset(x: 140, y: -140)
         }
-        .padding()
-        .background(Color.summitBackground)
+        .ignoresSafeArea()
     }
 }
 

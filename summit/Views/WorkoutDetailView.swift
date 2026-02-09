@@ -31,100 +31,127 @@ struct WorkoutDetailView: View {
     }
 
     var body: some View {
-        List(selection: $selectedExerciseIds) {
-            if let notes = workout.notes, !notes.isEmpty {
-                Section {
-                    Text(notes)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } header: {
-                    Text("Notes")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
+        ZStack {
+            workoutBackground
+
+            List(selection: $selectedExerciseIds) {
+                if let notes = workout.notes, !notes.isEmpty {
+                    Section {
+                        infoCard {
+                            Text(notes)
+                                .font(.custom("Avenir Next", size: 15))
+                                .foregroundStyle(Color.summitTextSecondary)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    } header: {
+                        sectionHeader(title: "Notes")
+                    }
                 }
-                .listRowBackground(Color.summitCard)
-            }
 
             Section {
                 Button {
                     selectedSession = DataHelpers.startSession(for: workout, in: modelContext)
                 } label: {
-                    Text("Start Workout")
-                        .fontWeight(.semibold)
-                }
-                .buttonStyle(.borderedProminent)
-            }
-
-            Section {
-                if exercises.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Exercises", systemImage: "dumbbell")
-                            .foregroundStyle(Color.summitText)
-                    } description: {
-                        Text("Add exercises to this workout to get started")
-                            .foregroundStyle(Color.summitTextSecondary)
-                    } actions: {
-                        Button {
-                            showingCreateExercise = true
-                        } label: {
-                            Text("Add Exercise")
-                                .fontWeight(.semibold)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.summitOrange)
-                    }
-                    .listRowBackground(Color.clear)
-                } else {
-                ForEach(exercises) { exercise in
-                    Group {
-                        if editMode == .active {
-                            ExerciseRowView(exercise: exercise)
-                                .contentShape(Rectangle())
-                        } else {
-                            Button {
-                                editingExercise = exercise
-                            } label: {
-                                ExerciseRowView(exercise: exercise)
+                    infoCard {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Start Workout")
+                                    .font(.custom("Avenir Next", size: 17))
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.summitBackground)
+                                Text("Begin your session and log sets")
+                                    .font(.custom("Avenir Next", size: 12))
+                                    .foregroundStyle(Color.summitBackground.opacity(0.75))
                             }
-                            .buttonStyle(.plain)
+
+                            Spacer()
+
+                            Image(systemName: "play.fill")
+                                .font(.title3)
+                                .foregroundStyle(Color.summitBackground)
                         }
+                        .padding(.vertical, 14)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.summitOrange,
+                                            Color.summitOrange.opacity(0.7)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                        )
                     }
-                    .tag(exercise.id)
-                    .listRowBackground(Color.summitCard)
                 }
-                    .onDelete(perform: confirmDeleteExercises)
-                    .onMove(perform: moveExercises)
-                }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } header: {
-                Text("Exercises")
-                    .textCase(nil)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
-            } footer: {
-                if !exercises.isEmpty {
-                    Text("Tap to edit • Swipe left to delete")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
+                    sectionHeader(title: "Session")
+                }
+
+                Section {
+                    if exercises.isEmpty {
+                        infoCard {
+                            ContentUnavailableView {
+                                Label("No Exercises", systemImage: "dumbbell")
+                                    .foregroundStyle(Color.summitText)
+                            } description: {
+                                Text("Add exercises to this workout to get started")
+                                    .foregroundStyle(Color.summitTextSecondary)
+                            } actions: {
+                                Button {
+                                    showingCreateExercise = true
+                                } label: {
+                                    Text("Add Exercise")
+                                        .fontWeight(.semibold)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(Color.summitOrange)
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(exercises) { exercise in
+                            Group {
+                                if editMode == .active {
+                                    ExerciseRowView(exercise: exercise)
+                                        .contentShape(Rectangle())
+                                } else {
+                                    Button {
+                                        editingExercise = exercise
+                                    } label: {
+                                        ExerciseRowView(exercise: exercise)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .tag(exercise.id)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        }
+                        .onDelete(perform: confirmDeleteExercises)
+                        .onMove(perform: moveExercises)
+                    }
+                } header: {
+                    sectionHeader(title: "Exercises")
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
-        .scrollContentBackground(.hidden)
-        .background(Color.summitBackground)
         .navigationTitle(workout.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarBackground(Color.summitBackground, for: .navigationBar)
         .environment(\.editMode, $editMode)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Text("Summit")
-                    .font(.system(size: 18, weight: .bold))
-                    .italic()
-                    .foregroundStyle(Color.summitOrange)
-                    .fixedSize()
-            }
-
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showingCreateExercise = true
@@ -309,6 +336,61 @@ struct WorkoutDetailView: View {
         .padding(.horizontal, 16)
     }
 
+    private var workoutBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.14))
+                .frame(width: 220, height: 220)
+                .blur(radius: 60)
+                .offset(x: 150, y: -140)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func sectionHeader(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .font(.custom("Avenir Next", size: 13))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitTextSecondary)
+
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.summitOrange, Color.summitOrange.opacity(0.3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 2)
+                .cornerRadius(1)
+        }
+        .padding(.bottom, 4)
+    }
+
+    private func infoCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.summitCard)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                    )
+            )
+    }
+
     private func moveExercises(from offsets: IndexSet, to destination: Int) {
         var updated = exercises
         updated.move(fromOffsets: offsets, toOffset: destination)
@@ -459,23 +541,16 @@ struct ExerciseRowView: View {
     let exercise: Exercise
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(exercise.name)
-                .font(.headline)
+                .font(.custom("Avenir Next", size: 17))
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.summitText)
 
-            HStack(spacing: 16) {
-                Label("\(Int(exercise.targetWeight))kg", systemImage: "scalemass")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
-
-                Label("\(exercise.targetRepsMin)-\(exercise.targetRepsMax) reps", systemImage: "repeat")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
-
-                Label("\(exercise.numberOfSets) sets", systemImage: "square.stack.3d.up")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
+            HStack(spacing: 14) {
+                infoChip(text: "\(Int(exercise.targetWeight))kg", systemImage: "scalemass")
+                infoChip(text: "\(exercise.targetRepsMin)-\(exercise.targetRepsMax) reps", systemImage: "repeat")
+                infoChip(text: "\(exercise.numberOfSets) sets", systemImage: "square.stack.3d.up")
             }
 
             if let notes = exercise.notes, !notes.isEmpty {
@@ -485,14 +560,39 @@ struct ExerciseRowView: View {
                         .foregroundStyle(Color.summitOrange)
 
                     Text(notes)
-                        .font(.caption)
+                        .font(.custom("Avenir Next", size: 12))
                         .foregroundStyle(Color.summitTextSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 2)
             }
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private func infoChip(text: String, systemImage: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.caption)
+            Text(text)
+                .font(.custom("Avenir Next", size: 12))
+        }
+        .foregroundStyle(Color.summitTextSecondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.summitCardElevated)
+        )
     }
 }
 

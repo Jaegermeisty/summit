@@ -12,7 +12,10 @@ import SwiftData
 final class ExerciseLog {
     var id: UUID
     var definition: ExerciseDefinition
-    var weight: Double // Weight used in kg
+    var weight: Double // External weight used in kg
+    var usesBodyweight: Bool
+    var bodyweightKg: Double
+    var bodyweightFactor: Double
     var repsData: Data? // Stored reps for each set
     var notes: String? // Optional notes for this specific session
     var orderIndex: Int // For maintaining exercise order in the workout
@@ -25,6 +28,9 @@ final class ExerciseLog {
         definition: ExerciseDefinition,
         weight: Double,
         reps: [Int],
+        usesBodyweight: Bool = false,
+        bodyweightKg: Double = 0,
+        bodyweightFactor: Double = 1.0,
         notes: String? = nil,
         orderIndex: Int = 0,
         session: WorkoutSession? = nil
@@ -32,6 +38,9 @@ final class ExerciseLog {
         self.id = id
         self.definition = definition
         self.weight = weight
+        self.usesBodyweight = usesBodyweight
+        self.bodyweightKg = bodyweightKg
+        self.bodyweightFactor = bodyweightFactor
         self.repsData = ExerciseLog.encodeReps(reps)
         self.notes = notes
         self.orderIndex = orderIndex
@@ -62,13 +71,21 @@ final class ExerciseLog {
         return (try? JSONDecoder().decode([Int].self, from: data)) ?? []
     }
 
+    var effectiveLoad: Double {
+        if usesBodyweight {
+            let base = max(0, bodyweightKg) * max(0, bodyweightFactor)
+            return base + weight
+        }
+        return weight
+    }
+
     /// Calculate the estimated 1RM using the best set (highest reps)
     /// Formula: 1RM = weight × (1 + reps/30)
     var estimatedOneRepMax: Double {
         guard let bestReps = reps.max(), bestReps > 0 else {
-            return weight
+            return effectiveLoad
         }
-        return weight * (1 + Double(bestReps) / 30.0)
+        return effectiveLoad * (1 + Double(bestReps) / 30.0)
     }
 
     /// Get the best set (highest reps) for this exercise

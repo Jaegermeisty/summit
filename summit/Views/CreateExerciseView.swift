@@ -23,6 +23,10 @@ struct CreateExerciseView: View {
     @State private var targetRepsMax: Int = 8
     @State private var numberOfSets: Int = 3
     @State private var notes: String = ""
+    @State private var usesBodyweight: Bool = false
+    @State private var bodyweightFactor: Double = 1.0
+    @State private var bodyweightKg: Double = 0
+    @State private var showingBodyweightInfo = false
 
     private var normalizedName: String {
         ExerciseDefinition.normalize(exerciseName)
@@ -58,14 +62,171 @@ struct CreateExerciseView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                nameSection
-                suggestionsSection
-                targetsSection
-                notesSection
+            ZStack {
+                formBackground
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        formHeader
+
+                        fieldCard(
+                            title: "Name",
+                            helper: "Names are matched case-insensitively, so “bench press” and “Bench Press” are the same exercise."
+                        ) {
+                            TextField("Exercise Name", text: $exerciseName)
+                                .textInputAutocapitalization(.words)
+                        }
+
+                        if !suggestions.isEmpty {
+                            fieldCard(title: "Suggestions") {
+                                VStack(spacing: 0) {
+                                    ForEach(suggestions, id: \.id) { definition in
+                                        Button {
+                                            applyDefinition(definition)
+                                        } label: {
+                                            HStack {
+                                                Text(definition.name)
+                                                    .foregroundStyle(Color.summitText)
+                                                Spacer()
+                                                if selectedDefinition?.id == definition.id {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundStyle(Color.summitOrange)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        if definition.id != suggestions.last?.id {
+                                            Divider()
+                                                .overlay(Color.summitTextTertiary.opacity(0.25))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        fieldCard(
+                            title: "Targets",
+                            helper: usesBodyweight
+                                ? "External weight is optional for weighted reps."
+                                : "Set your goal range and sets for each session."
+                        ) {
+                            VStack(spacing: 12) {
+                                HStack {
+                                    Text(usesBodyweight ? "External Weight" : "Target Weight")
+                                        .foregroundStyle(Color.summitTextSecondary)
+                                    Spacer()
+                                    TextField("0", value: $targetWeight, format: .number)
+                                        .keyboardType(.decimalPad)
+                                        .multilineTextAlignment(.trailing)
+                                        .frame(width: 90)
+                                    Text("kg")
+                                        .foregroundStyle(Color.summitTextSecondary)
+                                }
+                                .font(.custom("Avenir Next", size: 15))
+
+                                Divider()
+                                    .overlay(Color.summitTextTertiary.opacity(0.25))
+
+                                Stepper(value: $targetRepsMin, in: 1...30) {
+                                    HStack {
+                                        Text("Min Reps")
+                                        Spacer()
+                                        Text("\(targetRepsMin)")
+                                            .foregroundStyle(Color.summitTextSecondary)
+                                    }
+                                }
+                                .font(.custom("Avenir Next", size: 15))
+
+                                Stepper(value: $targetRepsMax, in: 1...30) {
+                                    HStack {
+                                        Text("Max Reps")
+                                        Spacer()
+                                        Text("\(targetRepsMax)")
+                                            .foregroundStyle(Color.summitTextSecondary)
+                                    }
+                                }
+                                .font(.custom("Avenir Next", size: 15))
+
+                                Stepper(value: $numberOfSets, in: 1...20) {
+                                    HStack {
+                                        Text("Sets")
+                                        Spacer()
+                                        Text("\(numberOfSets)")
+                                            .foregroundStyle(Color.summitTextSecondary)
+                                    }
+                                }
+                                .font(.custom("Avenir Next", size: 15))
+                            }
+                        }
+
+                        fieldCard(
+                            title: "Bodyweight",
+                            helper: "Use for pull-ups, push-ups, dips, and other bodyweight movements."
+                        ) {
+                            VStack(spacing: 12) {
+                                Toggle("Bodyweight exercise", isOn: $usesBodyweight)
+                                    .onChange(of: usesBodyweight) { _, newValue in
+                                        if newValue {
+                                            bodyweightFactor = ExerciseDefinition.defaultBodyweightFactor(for: exerciseName)
+                                            autofillBodyweightIfNeeded(from: selectedDefinition)
+                                        }
+                                    }
+
+                                if usesBodyweight {
+                                    HStack {
+                                        Text("Bodyweight (kg)")
+                                            .foregroundStyle(Color.summitTextSecondary)
+                                        Spacer()
+                                        TextField("0", value: $bodyweightKg, format: .number)
+                                            .keyboardType(.decimalPad)
+                                            .multilineTextAlignment(.trailing)
+                                            .frame(width: 90)
+                                    }
+                                    .font(.custom("Avenir Next", size: 15))
+
+                                    Divider()
+                                        .overlay(Color.summitTextTertiary.opacity(0.25))
+
+                                    HStack(spacing: 8) {
+                                        Text("Bodyweight factor")
+                                            .font(.custom("Avenir Next", size: 14))
+                                            .foregroundStyle(Color.summitTextSecondary)
+                                        Button {
+                                            showingBodyweightInfo = true
+                                        } label: {
+                                            Image(systemName: "questionmark.circle")
+                                                .foregroundStyle(Color.summitTextSecondary)
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        Spacer()
+
+                                        Text(String(format: "%.2f", bodyweightFactor))
+                                            .font(.custom("Avenir Next", size: 14))
+                                            .foregroundStyle(Color.summitText)
+                                    }
+
+                                    Slider(value: $bodyweightFactor, in: 0.3...1.2, step: 0.05)
+                                        .tint(Color.summitOrange)
+                                }
+                            }
+                        }
+
+                        fieldCard(
+                            title: "Notes",
+                            helper: "Optional cues or reminders for this movement."
+                        ) {
+                            TextField("Notes (optional)", text: $notes, axis: .vertical)
+                                .lineLimit(3...6)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 30)
+                }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.summitBackground)
             .navigationTitle("New Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
@@ -92,10 +253,16 @@ struct CreateExerciseView: View {
                 if let match = definitions.first(where: { $0.normalizedName == normalized }) {
                     if selectedDefinition?.id != match.id {
                         selectedDefinition = match
+                        usesBodyweight = match.usesBodyweight
+                        bodyweightFactor = match.bodyweightFactor
+                        bodyweightKg = match.lastBodyweightKg
                     }
                     autofillWeightIfNeeded(from: match)
+                    autofillBodyweightIfNeeded(from: match)
                 } else if let selectedDefinition, selectedDefinition.normalizedName != normalized {
                     self.selectedDefinition = nil
+                    usesBodyweight = false
+                    bodyweightFactor = ExerciseDefinition.defaultBodyweightFactor(for: exerciseName)
                 }
             }
             .onChange(of: targetRepsMin) { _, newValue in
@@ -108,120 +275,80 @@ struct CreateExerciseView: View {
                     targetRepsMin = newValue
                 }
             }
+            .alert("Bodyweight factor", isPresented: $showingBodyweightInfo) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("The factor estimates how much of your bodyweight contributes to the lift. 1.0 = full bodyweight (pull-ups). 0.70 is a common estimate for push-ups. Adjust if the movement uses less or more of your body.")
+            }
         }
     }
 
-    private var nameSection: some View {
-        Section {
-            TextField("Exercise Name", text: $exerciseName)
-                .font(.body)
-        } header: {
-            Text("Name")
-                .textCase(nil)
-                .font(.subheadline)
+    private var formHeader: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Create an exercise")
+                .font(.custom("Avenir Next", size: 22))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitText)
+        }
+    }
+
+    private func fieldCard<Content: View>(
+        title: String,
+        helper: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.custom("Avenir Next", size: 13))
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.summitTextSecondary)
-        } footer: {
-            Text("Names are matched case-insensitively, so “bench press” and “Bench Press” are the same exercise.")
-                .font(.caption)
-                .foregroundStyle(Color.summitTextTertiary)
+
+            content()
+                .font(.custom("Avenir Next", size: 16))
+                .foregroundStyle(Color.summitText)
+                .accentColor(Color.summitOrange)
+                .textFieldStyle(.plain)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.summitCardElevated)
+                )
+
+            if let helper {
+                Text(helper)
+                    .font(.custom("Avenir Next", size: 12))
+                    .foregroundStyle(Color.summitTextTertiary)
+            }
         }
-        .listRowBackground(Color.summitCard)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
     }
 
-    @ViewBuilder
-    private var suggestionsSection: some View {
-        let suggestionList: [ExerciseDefinition] = suggestions
+    private var formBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
 
-        if !suggestionList.isEmpty {
-            Section {
-                ForEach(suggestionList, id: \ExerciseDefinition.id) { (definition: ExerciseDefinition) in
-                    Button {
-                        applyDefinition(definition)
-                    } label: {
-                        HStack {
-                            Text(definition.name)
-                            Spacer()
-                            if selectedDefinition?.id == definition.id {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(Color.summitOrange)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            } header: {
-                Text("Suggestions")
-                    .textCase(nil)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
-            }
-            .listRowBackground(Color.summitCard)
+            Circle()
+                .fill(Color.summitOrange.opacity(0.12))
+                .frame(width: 220, height: 220)
+                .blur(radius: 60)
+                .offset(x: 140, y: -140)
         }
-    }
-
-    private var targetsSection: some View {
-        Section {
-            HStack {
-                Text("Target Weight")
-                    .foregroundStyle(Color.summitTextSecondary)
-
-                Spacer()
-
-                TextField("0", value: $targetWeight, format: .number)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-
-                Text("kg")
-                    .foregroundStyle(Color.summitTextSecondary)
-            }
-
-            Stepper(value: $targetRepsMin, in: 1...30) {
-                HStack {
-                    Text("Min Reps")
-                    Spacer()
-                    Text("\(targetRepsMin)")
-                        .foregroundStyle(Color.summitTextSecondary)
-                }
-            }
-
-            Stepper(value: $targetRepsMax, in: 1...30) {
-                HStack {
-                    Text("Max Reps")
-                    Spacer()
-                    Text("\(targetRepsMax)")
-                        .foregroundStyle(Color.summitTextSecondary)
-                }
-            }
-
-            Stepper(value: $numberOfSets, in: 1...20) {
-                HStack {
-                    Text("Sets")
-                    Spacer()
-                    Text("\(numberOfSets)")
-                        .foregroundStyle(Color.summitTextSecondary)
-                }
-            }
-        } header: {
-            Text("Targets")
-                .textCase(nil)
-                .font(.subheadline)
-                .foregroundStyle(Color.summitTextSecondary)
-        }
-        .listRowBackground(Color.summitCard)
-    }
-
-    private var notesSection: some View {
-        Section {
-            TextField("Notes (optional)", text: $notes, axis: .vertical)
-                .lineLimit(3...6)
-                .font(.body)
-        } header: {
-            Text("Notes")
-                .textCase(nil)
-                .font(.subheadline)
-                .foregroundStyle(Color.summitTextSecondary)
-        }
-        .listRowBackground(Color.summitCard)
+        .ignoresSafeArea()
     }
 
     private func createExercise() {
@@ -230,6 +357,17 @@ struct CreateExerciseView: View {
 
         let definition = resolveDefinition(for: trimmedName)
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if usesBodyweight {
+            definition.usesBodyweight = true
+            definition.bodyweightFactor = bodyweightFactor
+            if bodyweightKg > 0 {
+                definition.lastBodyweightKg = bodyweightKg
+            }
+        } else {
+            definition.usesBodyweight = false
+            definition.bodyweightFactor = 1.0
+        }
 
         let newExercise = Exercise(
             definition: definition,
@@ -272,12 +410,21 @@ struct CreateExerciseView: View {
         selectedDefinition = definition
         exerciseName = definition.name
         autofillWeightIfNeeded(from: definition)
+        autofillBodyweightIfNeeded(from: definition)
     }
 
     private func autofillWeightIfNeeded(from definition: ExerciseDefinition) {
         guard targetWeight == 0 else { return }
         if let suggestedWeight = DataHelpers.suggestedTargetWeight(for: definition, in: modelContext) {
             targetWeight = suggestedWeight
+        }
+    }
+
+    private func autofillBodyweightIfNeeded(from definition: ExerciseDefinition?) {
+        guard usesBodyweight else { return }
+        guard bodyweightKg == 0, let definition else { return }
+        if let suggested = DataHelpers.suggestedBodyweight(for: definition, in: modelContext) {
+            bodyweightKg = suggested
         }
     }
 }

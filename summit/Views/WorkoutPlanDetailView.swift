@@ -52,23 +52,16 @@ struct WorkoutPlanDetailView: View {
     }
 
     var body: some View {
-        contentList
-            .scrollContentBackground(.hidden)
-            .background(Color.summitBackground)
-            .navigationTitle(plan.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .environment(\.editMode, $editMode)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.summitBackground, for: .navigationBar)
-            .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Text("Summit")
-                    .font(.system(size: 18, weight: .bold))
-                    .italic()
-                    .foregroundStyle(Color.summitOrange)
-                    .fixedSize()
-            }
-
+        ZStack {
+            planBackground
+            contentList
+        }
+        .navigationTitle(plan.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .environment(\.editMode, $editMode)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(Color.summitBackground, for: .navigationBar)
+        .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button {
@@ -116,7 +109,6 @@ struct WorkoutPlanDetailView: View {
                         .foregroundStyle(Color.summitOrange)
                 }
             }
-
         }
         .safeAreaInset(edge: .bottom) {
             if phases.isEmpty && editMode == .active && !selectedWorkoutIds.isEmpty {
@@ -205,51 +197,66 @@ struct WorkoutPlanDetailView: View {
             phaseInfoSection
             workoutsOrPhasesSection
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
     }
 
     @ViewBuilder
     private var planDescriptionSection: some View {
         if let description = plan.planDescription {
             Section {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.summitTextSecondary)
+                infoCard {
+                    Text(description)
+                        .font(.custom("Avenir Next", size: 14))
+                        .foregroundStyle(Color.summitTextSecondary)
+                }
             }
-            .listRowBackground(Color.summitCard)
+            .listRowBackground(Color.clear)
         }
     }
 
     private var phaseInfoSection: some View {
         Section {
             if phases.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Organize your plan into phases (blocks). Workouts can’t live outside phases once enabled.")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-
-                    Button {
-                        showPhasePrompt(.enable)
-                    } label: {
-                        Text("Enable Phases")
+                infoCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Phases")
+                            .font(.custom("Avenir Next", size: 16))
                             .fontWeight(.semibold)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.summitOrange)
-                }
-                .padding(.vertical, 6)
-                .listRowBackground(Color.summitCard)
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Tap a phase to see its workouts.")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
+                            .foregroundStyle(Color.summitText)
 
-                    Text("Active phase controls the next workout shown on Home.")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
+                        Text("Group workouts into phases if you want to rotate blocks.")
+                            .font(.custom("Avenir Next", size: 13))
+                            .foregroundStyle(Color.summitTextSecondary)
+
+                        Button {
+                            showPhasePrompt(.enable)
+                        } label: {
+                            Text("Enable Phases")
+                                .fontWeight(.semibold)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.summitOrange)
+                    }
                 }
-                .padding(.vertical, 4)
-                .listRowBackground(Color.summitCard)
+                .listRowBackground(Color.clear)
+            } else {
+                infoCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Phases")
+                            .font(.custom("Avenir Next", size: 16))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.summitText)
+
+                        if let active = phases.first(where: { $0.isActive }) {
+                            Text("Active: \(active.name)")
+                                .font(.custom("Avenir Next", size: 13))
+                                .foregroundStyle(Color.summitTextSecondary)
+                        }
+                    }
+                }
+                .listRowBackground(Color.clear)
             }
         }
     }
@@ -296,7 +303,7 @@ struct WorkoutPlanDetailView: View {
                         }
                     }
                     .tag(workout.id)
-                    .listRowBackground(Color.summitCard)
+                    .listRowBackground(Color.clear)
                 }
                 .onDelete { offsets in
                     deleteWorkouts(at: offsets, in: nil)
@@ -304,16 +311,7 @@ struct WorkoutPlanDetailView: View {
                 .onMove(perform: moveWorkouts)
             }
         } header: {
-            Text("Workouts")
-                .textCase(nil)
-                .font(.subheadline)
-                .foregroundStyle(Color.summitTextSecondary)
-        } footer: {
-            if !workouts.isEmpty {
-                Text("Swipe left on a workout to delete it")
-                    .font(.caption)
-                    .foregroundStyle(Color.summitTextTertiary)
-            }
+            sectionHeader(title: "Workouts")
         }
     }
 
@@ -325,7 +323,7 @@ struct WorkoutPlanDetailView: View {
                 } label: {
                     PhaseListRowView(phase: phase, workoutCount: workouts.filter { $0.phaseId == phase.id }.count)
                 }
-                .listRowBackground(Color.summitCard)
+                .listRowBackground(Color.clear)
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
                     if !phase.isActive {
                         Button {
@@ -346,10 +344,7 @@ struct WorkoutPlanDetailView: View {
                 }
             }
         } header: {
-            Text("Phases")
-                .textCase(nil)
-                .font(.subheadline)
-                .foregroundStyle(Color.summitTextSecondary)
+            sectionHeader(title: "Phases")
         }
     }
 
@@ -596,6 +591,61 @@ struct WorkoutPlanDetailView: View {
         .padding(.horizontal, 16)
     }
 
+    private var planBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.16))
+                .frame(width: 220, height: 220)
+                .blur(radius: 60)
+                .offset(x: 140, y: -120)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func sectionHeader(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .font(.custom("Avenir Next", size: 13))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitTextSecondary)
+
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.summitOrange, Color.summitOrange.opacity(0.3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 2)
+                .cornerRadius(1)
+        }
+        .padding(.bottom, 4)
+    }
+
+    private func infoCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.summitCard)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                    )
+            )
+    }
+
     private var selectedWorkouts: [Workout] {
         workouts
             .filter { selectedWorkoutIds.contains($0.id) }
@@ -714,39 +764,53 @@ struct WorkoutRowView: View {
     let exerciseCount: Int
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Day \(workout.orderIndex + 1)")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule()
-                                .fill(Color.summitOrange)
-                        )
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.summitOrange.opacity(0.7))
+                    .frame(width: 6)
 
-                    Text(workout.name)
-                        .font(.body)
-                        .fontWeight(.medium)
-                        .foregroundStyle(Color.summitText)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text("Day \(workout.orderIndex + 1)")
+                            .font(.custom("Avenir Next", size: 11))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.summitTextSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(Color.summitCardElevated)
+                            )
+
+                        Text(workout.name)
+                            .font(.custom("Avenir Next", size: 17))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.summitText)
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "dumbbell")
+                            .font(.caption2)
+
+                        Text("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
+                            .font(.custom("Avenir Next", size: 12))
+                    }
+                    .foregroundStyle(Color.summitTextSecondary)
                 }
 
-                HStack(spacing: 4) {
-                    Image(systemName: "dumbbell")
-                        .font(.caption2)
-
-                    Text("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
-                        .font(.caption)
-                }
-                .foregroundStyle(Color.summitTextSecondary)
+                Spacer()
             }
-
-            Spacer()
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
     }
 }
 
@@ -755,38 +819,53 @@ struct PhaseListRowView: View {
     let workoutCount: Int
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Text(phase.name)
-                        .font(.headline)
-                        .foregroundStyle(Color.summitText)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(phase.isActive ? Color.summitOrange : Color.summitOrange.opacity(0.35))
+                    .frame(width: 6)
 
-                    if phase.isActive {
-                        Text("Active")
-                            .font(.caption2)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text(phase.name)
+                            .font(.custom("Avenir Next", size: 17))
                             .fontWeight(.semibold)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(
-                                Capsule()
-                                    .fill(Color.summitOrange)
-                            )
+                            .foregroundStyle(Color.summitText)
+
+                        if phase.isActive {
+                            Text("Active")
+                                .font(.custom("Avenir Next", size: 11))
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.summitOrange)
+                                )
+                        }
                     }
+
+                    Text("\(workoutCount) workout\(workoutCount == 1 ? "" : "s")")
+                        .font(.custom("Avenir Next", size: 12))
+                        .foregroundStyle(Color.summitTextSecondary)
                 }
 
-                Text("\(workoutCount) workout\(workoutCount == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundStyle(Color.summitTextSecondary)
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Color.summitTextTertiary)
             }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .foregroundStyle(Color.summitTextTertiary)
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
     }
 }
 
