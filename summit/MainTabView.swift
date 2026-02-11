@@ -34,9 +34,6 @@ struct MainTabView: View {
             .tag(Tab.analytics)
         }
         .tint(Color.summitOrange)
-        .task {
-            SeedData.seedIfNeeded(in: modelContext)
-        }
     }
 }
 

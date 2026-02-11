@@ -14,6 +14,7 @@ struct EditExerciseView: View {
 
     let exercise: Exercise
     @Query(sort: \ExerciseDefinition.name, order: .forward) private var definitions: [ExerciseDefinition]
+    @AppStorage(WeightUnit.storageKey) private var weightUnitRaw: String = WeightUnit.kg.rawValue
 
     @State private var exerciseName: String
     @State private var targetWeight: String
@@ -34,15 +35,20 @@ struct EditExerciseView: View {
 
     init(exercise: Exercise) {
         self.exercise = exercise
+        let unit = WeightUnit.current()
         _exerciseName = State(initialValue: exercise.name)
-        _targetWeight = State(initialValue: String(format: "%.1f", exercise.targetWeight))
+        _targetWeight = State(initialValue: unit.format(exercise.targetWeight))
         _targetRepsMin = State(initialValue: "\(exercise.targetRepsMin)")
         _targetRepsMax = State(initialValue: "\(exercise.targetRepsMax)")
         _numberOfSets = State(initialValue: "\(exercise.numberOfSets)")
         _exerciseNotes = State(initialValue: exercise.notes ?? "")
         _usesBodyweight = State(initialValue: exercise.definition.usesBodyweight)
         _bodyweightFactor = State(initialValue: exercise.definition.bodyweightFactor)
-        _bodyweightKg = State(initialValue: exercise.definition.lastBodyweightKg > 0 ? String(format: "%.1f", exercise.definition.lastBodyweightKg) : "")
+        _bodyweightKg = State(initialValue: exercise.definition.lastBodyweightKg > 0 ? unit.format(exercise.definition.lastBodyweightKg) : "")
+    }
+
+    private var weightUnit: WeightUnit {
+        WeightUnit(rawValue: weightUnitRaw) ?? .kg
     }
 
     private var isFormValid: Bool {
@@ -80,7 +86,7 @@ struct EditExerciseView: View {
                         ) {
                             VStack(spacing: 12) {
                                 HStack {
-                                    Text(usesBodyweight ? "External Weight (kg)" : "Target Weight (kg)")
+                                    Text(usesBodyweight ? "External Weight (\(weightUnit.symbol))" : "Target Weight (\(weightUnit.symbol))")
                                         .foregroundStyle(Color.summitTextSecondary)
                                     Spacer()
                                     TextField("0", text: $targetWeight)
@@ -144,7 +150,7 @@ struct EditExerciseView: View {
 
                                 if usesBodyweight {
                                     HStack {
-                                        Text("Bodyweight (kg)")
+                                        Text("Bodyweight (\(weightUnit.symbol))")
                                             .foregroundStyle(Color.summitTextSecondary)
                                         Spacer()
                                         TextField("0", text: $bodyweightKg)
@@ -198,8 +204,7 @@ struct EditExerciseView: View {
             }
             .navigationTitle("Edit Exercise")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -227,7 +232,7 @@ struct EditExerciseView: View {
             .alert("Bodyweight factor", isPresented: $showingBodyweightInfo) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("The factor estimates how much of your bodyweight contributes to the lift. 1.0 = full bodyweight (pull-ups). 0.70 is a common estimate for push-ups. Adjust if the movement uses less or more of your body.")
+                Text("The factor estimates how much of the total load (bodyweight + any added weight) contributes to the lift. 1.0 = full bodyweight (pull-ups). 0.70 is a common estimate for push-ups. Adjust if the movement uses less or more of your body.")
             }
         }
     }
@@ -304,13 +309,14 @@ struct EditExerciseView: View {
         let trimmedName = exerciseName.trimmingCharacters(in: .whitespaces)
         let trimmedNotes = exerciseNotes.trimmingCharacters(in: .whitespaces)
 
-        guard let weight = Double(targetWeight),
+        guard let weightDisplay = Double(targetWeight),
               let repsMin = Int(targetRepsMin),
               let repsMax = Int(targetRepsMax),
               let sets = Int(numberOfSets) else {
             return
         }
-        let parsedBodyweight = Double(bodyweightKg) ?? 0
+        let weight = weightUnit.toKg(weightDisplay)
+        let parsedBodyweight = weightUnit.toKg(Double(bodyweightKg) ?? 0)
 
         let normalized = ExerciseDefinition.normalize(trimmedName)
         let definition: ExerciseDefinition

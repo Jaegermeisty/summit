@@ -11,7 +11,6 @@ import SwiftData
 struct WorkoutSessionView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var purchaseManager: PurchaseManager
 
     @Bindable var session: WorkoutSession
     let workout: Workout
@@ -20,7 +19,6 @@ struct WorkoutSessionView: View {
     @State private var lastLogsByDefinition: [String: ExerciseLog] = [:]
     @State private var templatesByOrder: [Int: Exercise] = [:]
     @State private var showCompletionToast = false
-    @State private var showingPaywall = false
     @State private var showingEndConfirmation = false
     @State private var animatedProgress: Double = 0
 
@@ -71,9 +69,14 @@ struct WorkoutSessionView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .listRowSeparator(.hidden)
+            .listSectionSeparator(.hidden)
+            .listRowSeparatorTint(.clear)
+            .listSectionSeparatorTint(.clear)
         }
         .navigationTitle(session.workoutTemplateName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .scrollDismissesKeyboard(.immediately)
         .overlay(alignment: .top) {
             if showCompletionToast {
@@ -102,31 +105,6 @@ struct WorkoutSessionView: View {
             withAnimation(.easeOut(duration: 0.7)) {
                 animatedProgress = newValue
             }
-        }
-        .sheet(isPresented: $showingPaywall) {
-            PaywallView(
-                title: "Unlock Pro",
-                subtitle: "Save workout history and unlock analytics.",
-                features: [
-                    "Save completed workouts",
-                    "Full history access",
-                    "Progress analytics"
-                ],
-                primaryTitle: "Unlock Pro",
-                primaryAction: { attemptUnlockAndComplete() },
-                secondaryTitle: "Finish Without Saving",
-                secondaryRole: .destructive,
-                secondaryAction: {
-                    showingPaywall = false
-                    discardSession()
-                },
-                showsRestore: true,
-                restoreAction: { attemptRestoreAndComplete() },
-                showsClose: true,
-                closeAction: {
-                    showingPaywall = false
-                }
-            )
         }
     }
 
@@ -247,11 +225,6 @@ struct WorkoutSessionView: View {
     }
 
     private func finishSession() {
-        guard purchaseManager.isPro else {
-            showingPaywall = true
-            return
-        }
-
         completeAndSaveSession()
     }
 
@@ -269,37 +242,6 @@ struct WorkoutSessionView: View {
             }
         } catch {
             print("Error completing session: \(error)")
-        }
-    }
-
-    private func discardSession() {
-        modelContext.delete(session)
-
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
-            print("Error discarding session: \(error)")
-        }
-    }
-
-    private func attemptUnlockAndComplete() {
-        Task {
-            await purchaseManager.purchase()
-            if purchaseManager.isPro {
-                showingPaywall = false
-                completeAndSaveSession()
-            }
-        }
-    }
-
-    private func attemptRestoreAndComplete() {
-        Task {
-            await purchaseManager.restorePurchases()
-            if purchaseManager.isPro {
-                showingPaywall = false
-                completeAndSaveSession()
-            }
         }
     }
 
@@ -332,6 +274,11 @@ struct ExerciseLogRowView: View {
     @Bindable var log: ExerciseLog
     let lastLog: ExerciseLog?
     let repRange: String?
+    @AppStorage(WeightUnit.storageKey) private var weightUnitRaw: String = WeightUnit.kg.rawValue
+
+    private var weightUnit: WeightUnit {
+        WeightUnit(rawValue: weightUnitRaw) ?? .kg
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -353,13 +300,13 @@ struct ExerciseLogRowView: View {
                     HStack(spacing: 10) {
                         if lastLog.usesBodyweight {
                             if lastLog.bodyweightKg > 0 {
-                                infoChip(text: "BW \(formatWeight(lastLog.bodyweightKg))kg", systemImage: "person.fill")
+                                infoChip(text: "BW \(weightUnit.format(lastLog.bodyweightKg))\(weightUnit.symbol)", systemImage: "person.fill")
                             }
                             if lastLog.weight != 0 {
-                                infoChip(text: "+\(formatWeight(lastLog.weight))kg", systemImage: "scalemass")
+                                infoChip(text: "+\(weightUnit.format(lastLog.weight))\(weightUnit.symbol)", systemImage: "scalemass")
                             }
                         } else {
-                            infoChip(text: "\(formatWeight(lastLog.weight))kg", systemImage: "scalemass")
+                            infoChip(text: "\(weightUnit.format(lastLog.weight))\(weightUnit.symbol)", systemImage: "scalemass")
                         }
                         infoChip(text: repsSummary(lastLog.reps), systemImage: "clock.arrow.circlepath")
                     }
@@ -374,13 +321,13 @@ struct ExerciseLogRowView: View {
 
                     Spacer()
 
-                    TextField("0", value: $log.bodyweightKg, format: .number)
+                    TextField("0", value: bodyweightBinding, format: .number)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .font(.custom("Avenir Next", size: 15))
                         .foregroundStyle(Color.summitText)
 
-                    Text("kg")
+                    Text(weightUnit.symbol)
                         .font(.custom("Avenir Next", size: 14))
                         .foregroundStyle(Color.summitTextSecondary)
                 }
@@ -397,13 +344,13 @@ struct ExerciseLogRowView: View {
 
                     Spacer()
 
-                    TextField("0", value: $log.weight, format: .number)
+                    TextField("0", value: externalWeightBinding, format: .number)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .font(.custom("Avenir Next", size: 15))
                         .foregroundStyle(Color.summitText)
 
-                    Text("kg")
+                    Text(weightUnit.symbol)
                         .font(.custom("Avenir Next", size: 14))
                         .foregroundStyle(Color.summitTextSecondary)
                 }
@@ -420,13 +367,13 @@ struct ExerciseLogRowView: View {
 
                     Spacer()
 
-                    TextField("0", value: $log.weight, format: .number)
+                    TextField("0", value: externalWeightBinding, format: .number)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .font(.custom("Avenir Next", size: 15))
                         .foregroundStyle(Color.summitText)
 
-                    Text("kg")
+                    Text(weightUnit.symbol)
                         .font(.custom("Avenir Next", size: 14))
                         .foregroundStyle(Color.summitTextSecondary)
                 }
@@ -539,11 +486,18 @@ struct ExerciseLogRowView: View {
         return reps.map { String($0) }.joined(separator: ", ") + " reps"
     }
 
-    private func formatWeight(_ value: Double) -> String {
-        if value == floor(value) {
-            return String(Int(value))
-        }
-        return String(format: "%.1f", value)
+    private var externalWeightBinding: Binding<Double> {
+        Binding(
+            get: { weightUnit.fromKg(log.weight) },
+            set: { log.weight = weightUnit.toKg($0) }
+        )
+    }
+
+    private var bodyweightBinding: Binding<Double> {
+        Binding(
+            get: { weightUnit.fromKg(log.bodyweightKg) },
+            set: { log.bodyweightKg = weightUnit.toKg($0) }
+        )
     }
 }
 

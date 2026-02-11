@@ -27,6 +27,7 @@ struct AnalyticsView: View {
         sort: \WorkoutPlan.createdAt,
         order: .reverse
     ) private var plans: [WorkoutPlan]
+    @AppStorage(WeightUnit.storageKey) private var weightUnitRaw: String = WeightUnit.kg.rawValue
 
     @State private var mode: AnalyticsMode = .exercise
     @State private var selectedExerciseId: UUID?
@@ -43,19 +44,15 @@ struct AnalyticsView: View {
     @State private var selectedPlanStrengthPoint: PlanMetricPoint?
     @State private var selectedPlanVolumePoint: PlanMetricPoint?
 
+    private var weightUnit: WeightUnit {
+        WeightUnit(rawValue: weightUnitRaw) ?? .kg
+    }
+
     var body: some View {
-        Group {
-            if purchaseManager.isPro {
-                analyticsContent
-            } else {
-                analyticsPaywall
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
+        analyticsContent
         .navigationTitle("Analytics")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color.summitBackground, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             if selectedExerciseId == nil {
                 selectedExerciseId = definitions.first?.id
@@ -165,7 +162,16 @@ struct AnalyticsView: View {
             }
             .padding(.horizontal, 16)
 
-            if exerciseSeries.isEmpty {
+            if !purchaseManager.isPro {
+                infoCard {
+                    lockedAnalyticsCard(
+                        title: "Unlock Pro",
+                        message: "See exercise 1RM trends and progress over time.",
+                        actionTitle: "Unlock Pro"
+                    )
+                }
+                .padding(.horizontal, 16)
+            } else if exerciseSeries.isEmpty {
                 infoCard {
                     ContentUnavailableView {
                         Label("No Exercise Data", systemImage: "chart.line.uptrend.xyaxis")
@@ -181,13 +187,13 @@ struct AnalyticsView: View {
                     Chart(exerciseSeries) { point in
                         LineMark(
                             x: .value("Date", point.date),
-                            y: .value("1RM", point.oneRepMax)
+                            y: .value("1RM", weightUnit.fromKg(point.oneRepMax))
                         )
                         .foregroundStyle(Color.summitOrange)
 
                         PointMark(
                             x: .value("Date", point.date),
-                            y: .value("1RM", point.oneRepMax)
+                            y: .value("1RM", weightUnit.fromKg(point.oneRepMax))
                         )
                         .foregroundStyle(Color.summitOrange)
 
@@ -198,7 +204,7 @@ struct AnalyticsView: View {
 
                             PointMark(
                                 x: .value("Date", selected.date),
-                                y: .value("1RM", selected.oneRepMax)
+                                y: .value("1RM", weightUnit.fromKg(selected.oneRepMax))
                             )
                             .symbolSize(60)
                             .foregroundStyle(Color.summitOrange)
@@ -207,7 +213,7 @@ struct AnalyticsView: View {
                                     Text(selected.date, format: .dateTime.month().day())
                                         .font(.caption2)
                                         .foregroundStyle(Color.summitTextSecondary)
-                                    Text("\(Int(selected.oneRepMax)) 1RM")
+                                    Text("\(weightUnit.format(selected.oneRepMax)) \(weightUnit.symbol)")
                                         .font(.caption)
                                         .foregroundStyle(Color.summitText)
                                 }
@@ -309,7 +315,55 @@ struct AnalyticsView: View {
             }
             .padding(.horizontal, 16)
 
-            if planSeries.isEmpty {
+            if !purchaseManager.isPro {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 6) {
+                        Text("Plan Strength Score")
+                            .font(.custom("Avenir Next", size: 14))
+                            .foregroundStyle(Color.summitTextSecondary)
+                        Button {
+                            showingPlanStrengthInfo = true
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundStyle(Color.summitTextSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+
+                    infoCard {
+                        lockedAnalyticsCard(
+                            title: "Unlock Pro",
+                            message: "See plan strength score over each full cycle.",
+                            actionTitle: "Unlock Pro"
+                        )
+                    }
+                    .padding(.horizontal, 16)
+
+                    HStack(spacing: 6) {
+                        Text("Plan Volume")
+                            .font(.custom("Avenir Next", size: 14))
+                            .foregroundStyle(Color.summitTextSecondary)
+                        Button {
+                            showingPlanVolumeInfo = true
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundStyle(Color.summitTextSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+
+                    infoCard {
+                        lockedAnalyticsCard(
+                            title: "Unlock Pro",
+                            message: "Track plan volume trends across cycles.",
+                            actionTitle: "Unlock Pro"
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                }
+            } else if planSeries.isEmpty {
                 infoCard {
                     ContentUnavailableView {
                         Label("No Plan Data", systemImage: "chart.bar.xaxis")
@@ -372,26 +426,6 @@ struct AnalyticsView: View {
         } message: {
             Text("One point per full plan cycle. Total volume is the sum of weight × reps across all sets and exercises in that cycle.")
         }
-    }
-
-    private var analyticsPaywall: some View {
-        PaywallView(
-            title: "Unlock Analytics",
-            subtitle: "See your progress over time with exercise and plan analytics.",
-            features: [
-                "Exercise 1RM trends",
-                "Plan strength score",
-                "Plan volume tracking"
-            ],
-            primaryTitle: "Unlock Pro",
-            primaryAction: {
-                Task { await purchaseManager.purchase() }
-            },
-            showsRestore: true,
-            restoreAction: {
-                Task { await purchaseManager.restorePurchases() }
-            }
-        )
     }
 
     private var pinnedExerciseIds: Set<UUID> {
@@ -486,8 +520,7 @@ struct AnalyticsView: View {
             }
             .navigationTitle("Choose Exercise")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
@@ -502,12 +535,12 @@ struct AnalyticsView: View {
         Chart(planSeries) { point in
             LineMark(
                 x: .value("Date", point.date),
-                y: .value("Strength", point.strengthScore)
+                y: .value("Strength", weightUnit.fromKg(point.strengthScore))
             )
             .foregroundStyle(Color.summitOrange)
             PointMark(
                 x: .value("Date", point.date),
-                y: .value("Strength", point.strengthScore)
+                y: .value("Strength", weightUnit.fromKg(point.strengthScore))
             )
             .foregroundStyle(Color.summitOrange)
 
@@ -518,7 +551,7 @@ struct AnalyticsView: View {
 
                 PointMark(
                     x: .value("Date", selected.date),
-                    y: .value("Strength", selected.strengthScore)
+                    y: .value("Strength", weightUnit.fromKg(selected.strengthScore))
                 )
                 .symbolSize(60)
                 .foregroundStyle(Color.summitOrange)
@@ -527,7 +560,7 @@ struct AnalyticsView: View {
                         Text(selected.date, format: .dateTime.month().day())
                             .font(.caption2)
                             .foregroundStyle(Color.summitTextSecondary)
-                        Text("\(Int(selected.strengthScore)) strength")
+                        Text("\(weightUnit.format(selected.strengthScore)) \(weightUnit.symbol)")
                             .font(.caption)
                             .foregroundStyle(Color.summitText)
                     }
@@ -586,12 +619,12 @@ struct AnalyticsView: View {
         Chart(planSeries) { point in
             LineMark(
                 x: .value("Date", point.date),
-                y: .value("Volume", point.volume)
+                y: .value("Volume", weightUnit.fromKg(point.volume))
             )
             .foregroundStyle(Color.summitOrange)
             PointMark(
                 x: .value("Date", point.date),
-                y: .value("Volume", point.volume)
+                y: .value("Volume", weightUnit.fromKg(point.volume))
             )
             .foregroundStyle(Color.summitOrange)
 
@@ -602,7 +635,7 @@ struct AnalyticsView: View {
 
                 PointMark(
                     x: .value("Date", selected.date),
-                    y: .value("Volume", selected.volume)
+                    y: .value("Volume", weightUnit.fromKg(selected.volume))
                 )
                 .symbolSize(60)
                 .foregroundStyle(Color.summitOrange)
@@ -611,7 +644,7 @@ struct AnalyticsView: View {
                         Text(selected.date, format: .dateTime.month().day())
                             .font(.caption2)
                             .foregroundStyle(Color.summitTextSecondary)
-                        Text("\(Int(selected.volume)) volume")
+                        Text("\(weightUnit.format(selected.volume)) \(weightUnit.symbol)")
                             .font(.caption)
                             .foregroundStyle(Color.summitText)
                     }
@@ -787,6 +820,49 @@ struct AnalyticsView: View {
             )
     }
 
+    private func lockedAnalyticsCard(title: String, message: String, actionTitle: String) -> some View {
+        VStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.summitOrange.opacity(0.12))
+                    .frame(width: 48, height: 48)
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(Color.summitOrange)
+            }
+
+            Text(title)
+                .font(.custom("Avenir Next", size: 18))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitText)
+
+            Text(message)
+                .font(.custom("Avenir Next", size: 13))
+                .foregroundStyle(Color.summitTextSecondary)
+                .multilineTextAlignment(.center)
+
+            Button(actionTitle) {
+                Task { await purchaseManager.purchase() }
+            }
+            .font(.custom("Avenir Next", size: 14))
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.summitBackground)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.summitOrange)
+            )
+            .buttonStyle(.plain)
+
+            Button("Restore Purchase") {
+                Task { await purchaseManager.restorePurchases() }
+            }
+            .font(.custom("Avenir Next", size: 12))
+            .foregroundStyle(Color.summitTextTertiary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private func reloadExerciseSeries() {
         guard let selectedExerciseId,
               let definition = definitions.first(where: { $0.id == selectedExerciseId }) else {
@@ -897,7 +973,7 @@ struct AnalyticsView: View {
     }
 
     private var planStrengthDomain: ClosedRange<Double> {
-        let values = planSeries.map(\.strengthScore)
+        let values = planSeries.map { weightUnit.fromKg($0.strengthScore) }
         guard let minValue = values.min(), let maxValue = values.max() else {
             return 0...1
         }
@@ -905,7 +981,7 @@ struct AnalyticsView: View {
     }
 
     private var planVolumeDomain: ClosedRange<Double> {
-        let values = planSeries.map(\.volume)
+        let values = planSeries.map { weightUnit.fromKg($0.volume) }
         guard let maxValue = values.max() else {
             return 0...1
         }

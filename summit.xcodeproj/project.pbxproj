@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		4D998DB62F3A4BAC0016C19A /* Summit: Workout Tracker.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 4D998DB52F3A4BAC0016C19A /* Summit: Workout Tracker.storekit */; };
+		4DC7705B2F3B5EA90067EF42 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4DC7705A2F3B5EA90067EF42 /* LaunchScreen.storyboard */; };
 		4DE05F792F3A3AD200D843B7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DE05F782F3A3AD100D843B7 /* StoreKit.framework */; };
 /* End PBXBuildFile section */
 
@@ -33,6 +34,7 @@
 		4D55962A2E9E5D500082A6BF /* summitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = summitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D5596342E9E5D500082A6BF /* summitUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = summitUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D998DB52F3A4BAC0016C19A /* Summit: Workout Tracker.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Summit: Workout Tracker.storekit"; sourceTree = "<group>"; };
+		4DC7705A2F3B5EA90067EF42 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		4DE05F782F3A3AD100D843B7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -83,6 +85,7 @@
 		4D5596122E9E5D4F0082A6BF = {
 			isa = PBXGroup;
 			children = (
+				4DC7705A2F3B5EA90067EF42 /* LaunchScreen.storyboard */,
 				4D998DB52F3A4BAC0016C19A /* Summit: Workout Tracker.storekit */,
 				4D55961D2E9E5D4F0082A6BF /* summit */,
 				4D55962D2E9E5D500082A6BF /* summitTests */,
@@ -230,6 +233,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4DC7705B2F3B5EA90067EF42 /* LaunchScreen.storyboard in Resources */,
 				4D998DB62F3A4BAC0016C19A /* Summit: Workout Tracker.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -409,6 +413,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = VFXTRP6N22;
@@ -423,6 +428,7 @@
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen.storyboard;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -453,6 +459,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = VFXTRP6N22;
@@ -467,6 +474,7 @@
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen.storyboard;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

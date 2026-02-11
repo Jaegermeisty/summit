@@ -14,6 +14,7 @@ struct ContentView: View {
 
     @State private var showingCreatePlan = false
     @State private var showingHistory = false
+    @State private var showingSettings = false
     @State private var planToDelete: WorkoutPlan?
     @State private var showingDeleteConfirmation = false
     @State private var sessionToStart: WorkoutSession?
@@ -45,8 +46,7 @@ struct ContentView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
@@ -60,9 +60,7 @@ struct ContentView: View {
 
                 ToolbarItem(placement: .principal) {
                     Text("Summit")
-                        .font(.custom("Avenir Next", size: 18))
-                        .fontWeight(.bold)
-                        .italic()
+                        .font(.custom("AvenirNext-HeavyItalic", size: 20))
                         .foregroundStyle(Color.summitOrange)
                         .fixedSize()
                 }
@@ -75,6 +73,16 @@ struct ContentView: View {
                             .foregroundStyle(Color.summitOrange)
                     }
                 }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .foregroundStyle(Color.summitOrange)
+                    }
+                    .accessibilityLabel("Settings")
+                }
             }
             .sheet(isPresented: $showingCreatePlan) {
                 CreateWorkoutPlanView()
@@ -82,6 +90,11 @@ struct ContentView: View {
             .sheet(isPresented: $showingHistory) {
                 NavigationStack {
                     HistoryView()
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                NavigationStack {
+                    SettingsView()
                 }
             }
             .navigationDestination(item: $sessionToStart) { session in
@@ -141,6 +154,7 @@ struct ContentView: View {
                     )
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 14)
                     .contextMenu {
@@ -168,9 +182,11 @@ struct ContentView: View {
                             .font(.custom("Avenir Next", size: 14))
                     }
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
             } header: {
                 sectionHeader(title: "Active Plan")
+                    .listRowSeparator(.hidden)
             }
 
             if !otherPlans.isEmpty {
@@ -180,6 +196,7 @@ struct ContentView: View {
                             PlanRowView(plan: plan)
                         }
                         .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                         .contextMenu {
                             Button {
                                 setActivePlan(plan)
@@ -207,6 +224,7 @@ struct ContentView: View {
                     .onDelete(perform: deleteOtherPlans)
                 } header: {
                     sectionHeader(title: "Other Plans")
+                        .listRowSeparator(.hidden)
                 }
             }
 
@@ -217,6 +235,7 @@ struct ContentView: View {
                             PlanRowView(plan: plan)
                         }
                         .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                         .contextMenu {
                             Button {
                                 restorePlan(plan)
@@ -244,10 +263,15 @@ struct ContentView: View {
                     .onDelete(perform: deleteArchivedPlans)
                 } header: {
                     sectionHeader(title: "Archived Plans")
+                        .listRowSeparator(.hidden)
                 }
             }
         }
         .listStyle(.plain)
+        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
+        .listRowSeparatorTint(.clear)
+        .listSectionSeparatorTint(.clear)
         .scrollContentBackground(.hidden)
         .background(Color.clear)
     }

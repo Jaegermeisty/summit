@@ -59,8 +59,7 @@ struct WorkoutPlanDetailView: View {
         .navigationTitle(plan.name)
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.editMode, $editMode)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color.summitBackground, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -198,6 +197,10 @@ struct WorkoutPlanDetailView: View {
             workoutsOrPhasesSection
         }
         .listStyle(.plain)
+        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
+        .listRowSeparatorTint(.clear)
+        .listSectionSeparatorTint(.clear)
         .scrollContentBackground(.hidden)
         .background(Color.clear)
     }
@@ -213,6 +216,7 @@ struct WorkoutPlanDetailView: View {
                 }
             }
             .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -241,6 +245,7 @@ struct WorkoutPlanDetailView: View {
                     }
                 }
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } else {
                 infoCard {
                     VStack(alignment: .leading, spacing: 10) {
@@ -257,6 +262,7 @@ struct WorkoutPlanDetailView: View {
                     }
                 }
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
         }
     }
@@ -290,6 +296,7 @@ struct WorkoutPlanDetailView: View {
                     .tint(Color.summitOrange)
                 }
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } else {
                 ForEach(workouts) { workout in
                     Group {
@@ -304,6 +311,7 @@ struct WorkoutPlanDetailView: View {
                     }
                     .tag(workout.id)
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
                 .onDelete { offsets in
                     deleteWorkouts(at: offsets, in: nil)
@@ -312,6 +320,7 @@ struct WorkoutPlanDetailView: View {
             }
         } header: {
             sectionHeader(title: "Workouts")
+                .listRowSeparator(.hidden)
         }
     }
 
@@ -324,6 +333,7 @@ struct WorkoutPlanDetailView: View {
                     PhaseListRowView(phase: phase, workoutCount: workouts.filter { $0.phaseId == phase.id }.count)
                 }
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
                     if !phase.isActive {
                         Button {
@@ -345,6 +355,7 @@ struct WorkoutPlanDetailView: View {
             }
         } header: {
             sectionHeader(title: "Phases")
+                .listRowSeparator(.hidden)
         }
     }
 
@@ -882,18 +893,34 @@ struct PhasePromptView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                TextField("Phase Name", text: $phaseName)
-            } header: {
-                Text("Name")
-                    .textCase(nil)
-            } footer: {
-                Text(message)
+        ZStack {
+            formBackground
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(title)
+                            .font(.custom("Avenir Next", size: 22))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.summitText)
+                    }
+
+                    fieldCard(
+                        title: "Name",
+                        helper: message
+                    ) {
+                        TextField("Phase Name", text: $phaseName)
+                            .textInputAutocapitalization(.words)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 30)
             }
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
@@ -908,6 +935,63 @@ struct PhasePromptView: View {
                 .disabled(!canConfirm)
             }
         }
+    }
+
+    private func fieldCard<Content: View>(
+        title: String,
+        helper: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.custom("Avenir Next", size: 13))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitTextSecondary)
+
+            content()
+                .font(.custom("Avenir Next", size: 16))
+                .foregroundStyle(Color.summitText)
+                .accentColor(Color.summitOrange)
+                .textFieldStyle(.plain)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.summitCardElevated)
+                )
+
+            Text(helper)
+                .font(.custom("Avenir Next", size: 12))
+                .foregroundStyle(Color.summitTextTertiary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private var formBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.12))
+                .frame(width: 240, height: 240)
+                .blur(radius: 60)
+                .offset(x: 140, y: -140)
+        }
+        .ignoresSafeArea()
     }
 }
 

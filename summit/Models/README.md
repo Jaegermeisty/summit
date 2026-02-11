@@ -26,12 +26,12 @@ The app should make it effortless to train from the **active plan**:
 
 - SwiftData models for plans, phases, workouts, exercises, sessions, logs, and body weight.
 - Shared and preview model containers with sample data.
-- Seed data for a default 3-day split + ~8 weeks of completed history (runs once on empty store).
+- SeedData utilities exist for dev/screenshot seeding, but auto-seeding is disabled. App starts empty in all builds.
 - Canonical exercise catalog with case-insensitive matching and suggestions.
 - Auto-fill target weight from last known template/log (when creating exercises).
 - Active plan card on Home with "Start Workout".
 - Session flow with per-set logging and last performance per workout/day.
-- History list (last 5 completed sessions) with edit capability.
+- History list with edit capability (free: last session; Pro: last 5 + load more).
 - Session completion toast on finish.
 - Phases (blocks) for plans, with active phase selection and phase-aware next workout.
 - Plan archive + restore (archived plans hidden from Home and Analytics).
@@ -40,12 +40,16 @@ The app should make it effortless to train from the **active plan**:
   - Exercise progress (estimated 1RM) over time with chart inspection
   - Exercise pinning in the analytics selector
   - Plan strength score and volume over time (per plan cycle), auto-scaled charts + inspection
+  - Free users can browse selectors/tooltips with locked cards; Pro unlocks charts
 - Bodyweight support:
   - Mark exercises as bodyweight with an adjustable factor (e.g., push-ups default 0.70)
   - Per-session bodyweight entry with optional external weight
   - Analytics/plan scores use effective load (bodyweight × factor + external)
-- StoreKit 2 paywall that gates Analytics + History and prevents saving completed sessions without Pro
+- StoreKit 2 paywall that gates Analytics + full History (free saves sessions but only shows the latest)
 - StoreKit config file works locally; sandbox auth on simulator can be flaky (validate on device/TestFlight before release)
+- Disable StoreKit configuration (set to None) before archiving or uploading to App Store Connect
+- Settings screen with unit toggle (kg/lb), Pro status, support, and privacy links
+- Launch screen + app icon configured (use actual assets for release)
 - Editing:
   - Rename plan + edit description
   - Rename workout + edit notes
@@ -66,9 +70,8 @@ The app should make it effortless to train from the **active plan**:
 These are **intended features**, not yet implemented:
 
 - Paywall:
-  - Free: create plans/workouts, track a session in-progress
-  - Pro (one-time purchase): persistent history + analytics
-  - Data only starts being saved **after** purchase; no retroactive history
+  - Free: create plans/workouts, track sessions, see only the latest completed session
+  - Pro (one-time purchase): full history + analytics (unlocks past data)
   - In-progress session data should persist even if the app is backgrounded or closed
 - Plan comparison view (later release)
 - Long-term migration strategy (SwiftData schema changes)
@@ -92,8 +95,8 @@ Logging
 - [x] Per-set logging UI (weight + reps)
 - [x] Show last performance for the **same workout/day** (exercise template) to guide weight selection
 - [x] Persist session progress during app background/close
-- [x] Gate history saving behind Pro (completed sessions discarded unless Pro)
-- [x] History list of recent workouts with edit capability (without changing original date)
+- [x] Gate full history behind Pro (free shows only the latest session)
+- [x] History list with edit capability (free last session, Pro last 5 + load more)
 - [x] Session completed toast
 - [x] Delete confirmations for workouts, phases, and exercises (exercise history kept)
 

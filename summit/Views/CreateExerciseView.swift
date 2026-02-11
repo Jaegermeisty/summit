@@ -13,6 +13,7 @@ struct CreateExerciseView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \ExerciseDefinition.name, order: .forward) private var definitions: [ExerciseDefinition]
     @Query private var existingExercises: [Exercise]
+    @AppStorage(WeightUnit.storageKey) private var weightUnitRaw: String = WeightUnit.kg.rawValue
 
     let workout: Workout
 
@@ -27,6 +28,10 @@ struct CreateExerciseView: View {
     @State private var bodyweightFactor: Double = 1.0
     @State private var bodyweightKg: Double = 0
     @State private var showingBodyweightInfo = false
+
+    private var weightUnit: WeightUnit {
+        WeightUnit(rawValue: weightUnitRaw) ?? .kg
+    }
 
     private var normalizedName: String {
         ExerciseDefinition.normalize(exerciseName)
@@ -117,11 +122,11 @@ struct CreateExerciseView: View {
                                     Text(usesBodyweight ? "External Weight" : "Target Weight")
                                         .foregroundStyle(Color.summitTextSecondary)
                                     Spacer()
-                                    TextField("0", value: $targetWeight, format: .number)
+                                    TextField("0", value: targetWeightBinding, format: .number)
                                         .keyboardType(.decimalPad)
                                         .multilineTextAlignment(.trailing)
                                         .frame(width: 90)
-                                    Text("kg")
+                                    Text(weightUnit.symbol)
                                         .foregroundStyle(Color.summitTextSecondary)
                                 }
                                 .font(.custom("Avenir Next", size: 15))
@@ -176,10 +181,10 @@ struct CreateExerciseView: View {
 
                                 if usesBodyweight {
                                     HStack {
-                                        Text("Bodyweight (kg)")
+                                        Text("Bodyweight (\(weightUnit.symbol))")
                                             .foregroundStyle(Color.summitTextSecondary)
                                         Spacer()
-                                        TextField("0", value: $bodyweightKg, format: .number)
+                                        TextField("0", value: bodyweightBinding, format: .number)
                                             .keyboardType(.decimalPad)
                                             .multilineTextAlignment(.trailing)
                                             .frame(width: 90)
@@ -229,8 +234,7 @@ struct CreateExerciseView: View {
             }
             .navigationTitle("New Exercise")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -278,7 +282,7 @@ struct CreateExerciseView: View {
             .alert("Bodyweight factor", isPresented: $showingBodyweightInfo) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("The factor estimates how much of your bodyweight contributes to the lift. 1.0 = full bodyweight (pull-ups). 0.70 is a common estimate for push-ups. Adjust if the movement uses less or more of your body.")
+                Text("The factor estimates how much of the total load (bodyweight + any added weight) contributes to the lift. 1.0 = full bodyweight (pull-ups). 0.70 is a common estimate for push-ups. Adjust if the movement uses less or more of your body.")
             }
         }
     }
@@ -426,6 +430,20 @@ struct CreateExerciseView: View {
         if let suggested = DataHelpers.suggestedBodyweight(for: definition, in: modelContext) {
             bodyweightKg = suggested
         }
+    }
+
+    private var targetWeightBinding: Binding<Double> {
+        Binding(
+            get: { weightUnit.fromKg(targetWeight) },
+            set: { targetWeight = weightUnit.toKg($0) }
+        )
+    }
+
+    private var bodyweightBinding: Binding<Double> {
+        Binding(
+            get: { weightUnit.fromKg(bodyweightKg) },
+            set: { bodyweightKg = weightUnit.toKg($0) }
+        )
     }
 }
 

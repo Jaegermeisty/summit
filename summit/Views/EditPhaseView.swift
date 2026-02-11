@@ -25,36 +25,37 @@ struct EditPhaseView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Phase Name", text: $phaseName)
-                        .font(.body)
-                } header: {
-                    Text("Name")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                }
-                .listRowBackground(Color.summitCard)
+            ZStack {
+                formBackground
 
-                Section {
-                    TextField("Notes (optional)", text: $phaseNotes, axis: .vertical)
-                        .lineLimit(2...4)
-                        .font(.body)
-                } header: {
-                    Text("Notes")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        formHeader
+
+                        fieldCard(
+                            title: "Name",
+                            helper: "Rename this phase as it appears in your plan."
+                        ) {
+                            TextField("Phase Name", text: $phaseName)
+                                .textInputAutocapitalization(.words)
+                        }
+
+                        fieldCard(
+                            title: "Notes",
+                            helper: "Optional notes about how long to run this phase."
+                        ) {
+                            TextField("Notes (optional)", text: $phaseNotes, axis: .vertical)
+                                .lineLimit(2...4)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 30)
                 }
-                .listRowBackground(Color.summitCard)
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.summitBackground)
             .navigationTitle("Edit Phase")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -73,6 +74,72 @@ struct EditPhaseView: View {
                 }
             }
         }
+    }
+
+    private var formHeader: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Edit phase")
+                .font(.custom("Avenir Next", size: 22))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitText)
+        }
+    }
+
+    private func fieldCard<Content: View>(
+        title: String,
+        helper: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.custom("Avenir Next", size: 13))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitTextSecondary)
+
+            content()
+                .font(.custom("Avenir Next", size: 16))
+                .foregroundStyle(Color.summitText)
+                .accentColor(Color.summitOrange)
+                .textFieldStyle(.plain)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.summitCardElevated)
+                )
+
+            Text(helper)
+                .font(.custom("Avenir Next", size: 12))
+                .foregroundStyle(Color.summitTextTertiary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private var formBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.12))
+                .frame(width: 240, height: 240)
+                .blur(radius: 60)
+                .offset(x: 140, y: -140)
+        }
+        .ignoresSafeArea()
     }
 
     private func saveChanges() {

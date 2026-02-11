@@ -73,8 +73,8 @@ final class ExerciseLog {
 
     var effectiveLoad: Double {
         if usesBodyweight {
-            let base = max(0, bodyweightKg) * max(0, bodyweightFactor)
-            return base + weight
+            let total = max(0, bodyweightKg + weight)
+            return total * max(0, bodyweightFactor)
         }
         return weight
     }

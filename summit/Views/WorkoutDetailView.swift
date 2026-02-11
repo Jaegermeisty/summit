@@ -144,12 +144,15 @@ struct WorkoutDetailView: View {
                 }
             }
             .listStyle(.plain)
+            .listRowSeparator(.hidden)
+            .listSectionSeparator(.hidden)
+            .listRowSeparatorTint(.clear)
+            .listSectionSeparatorTint(.clear)
             .scrollContentBackground(.hidden)
         }
         .navigationTitle(workout.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color.summitBackground, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .environment(\.editMode, $editMode)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -539,6 +542,11 @@ struct WorkoutDetailView: View {
 
 struct ExerciseRowView: View {
     let exercise: Exercise
+    @AppStorage(WeightUnit.storageKey) private var weightUnitRaw: String = WeightUnit.kg.rawValue
+
+    private var weightUnit: WeightUnit {
+        WeightUnit(rawValue: weightUnitRaw) ?? .kg
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -548,7 +556,7 @@ struct ExerciseRowView: View {
                 .foregroundStyle(Color.summitText)
 
             HStack(spacing: 14) {
-                infoChip(text: "\(Int(exercise.targetWeight))kg", systemImage: "scalemass")
+                infoChip(text: "\(weightUnit.format(exercise.targetWeight))\(weightUnit.symbol)", systemImage: "scalemass")
                 infoChip(text: "\(exercise.targetRepsMin)-\(exercise.targetRepsMax) reps", systemImage: "repeat")
                 infoChip(text: "\(exercise.numberOfSets) sets", systemImage: "square.stack.3d.up")
             }

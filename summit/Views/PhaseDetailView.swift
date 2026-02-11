@@ -42,8 +42,7 @@ struct PhaseDetailView: View {
         .navigationTitle(phase.name)
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.editMode, $editMode)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color.summitBackground, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -175,6 +174,10 @@ struct PhaseDetailView: View {
             workoutsSection
         }
         .listStyle(.plain)
+        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
+        .listRowSeparatorTint(.clear)
+        .listSectionSeparatorTint(.clear)
         .scrollContentBackground(.hidden)
         .background(Color.clear)
     }
@@ -225,6 +228,7 @@ struct PhaseDetailView: View {
             }
         }
         .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
     }
 
     private var workoutsSection: some View {
@@ -247,6 +251,7 @@ struct PhaseDetailView: View {
                     .tint(Color.summitOrange)
                 }
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } else {
                 ForEach(workouts) { workout in
                     Group {
@@ -261,6 +266,7 @@ struct PhaseDetailView: View {
                     }
                     .tag(workout.id)
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     .contextMenu {
                         if phases.count > 1 {
                             Button {
@@ -280,6 +286,7 @@ struct PhaseDetailView: View {
                 .textCase(nil)
                 .font(.subheadline)
                 .foregroundStyle(Color.summitTextSecondary)
+                .listRowSeparator(.hidden)
         } footer: {
             if !workouts.isEmpty {
                 Text("Swipe left on a workout to delete it")

@@ -41,102 +41,95 @@ struct CreateWorkoutView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Workout Name", text: $workoutName)
-                        .font(.body)
-                } header: {
-                    Text("Name")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("e.g., Push Day, Pull Day, Leg Day, Upper Body, Day 1")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
-                .listRowBackground(Color.summitCard)
+            ZStack {
+                formBackground
 
-                Section {
-                    TextField("Notes (optional)", text: $workoutNotes, axis: .vertical)
-                        .lineLimit(2...4)
-                        .font(.body)
-                } header: {
-                    Text("Notes")
-                        .textCase(nil)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.summitTextSecondary)
-                } footer: {
-                    Text("Add notes about focus areas, intensity, or special instructions")
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
-                }
-                .listRowBackground(Color.summitCard)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        formHeader
 
-                if !phases.isEmpty {
-                    Section {
-                        if isPhaseLocked, let phaseName = selectedPhase?.name {
-                            HStack {
-                                Text("Phase")
-                                    .foregroundStyle(Color.summitTextSecondary)
+                        fieldCard(
+                            title: "Name",
+                            helper: "e.g., Push Day, Pull Day, Leg Day, Upper Body, Day 1"
+                        ) {
+                            TextField("Workout Name", text: $workoutName)
+                                .textInputAutocapitalization(.words)
+                        }
 
-                                Spacer()
+                        fieldCard(
+                            title: "Notes",
+                            helper: "Add notes about focus areas, intensity, or special instructions"
+                        ) {
+                            TextField("Notes (optional)", text: $workoutNotes, axis: .vertical)
+                                .lineLimit(2...4)
+                        }
 
-                                Text(phaseName)
-                                    .foregroundStyle(Color.summitText)
-                            }
-                        } else {
-                            Picker("Phase", selection: $selectedPhaseId) {
-                                ForEach(phases) { phase in
-                                    Text(phase.name).tag(Optional(phase.id))
+                        if !phases.isEmpty {
+                            fieldCard(
+                                title: "Phase",
+                                helper: "Workouts must belong to a phase when phases are enabled. You can move them later."
+                            ) {
+                                if isPhaseLocked, let phaseName = selectedPhase?.name {
+                                    HStack {
+                                        Text(phaseName)
+                                            .foregroundStyle(Color.summitText)
+                                        Spacer()
+                                        Image(systemName: "lock.fill")
+                                            .foregroundStyle(Color.summitTextTertiary)
+                                    }
+                                } else {
+                                    Menu {
+                                        ForEach(phases) { phase in
+                                            Button(phase.name) {
+                                                selectedPhaseId = phase.id
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Text(selectedPhase?.name ?? "Select Phase")
+                                            Spacer()
+                                            Image(systemName: "chevron.up.chevron.down")
+                                                .font(.caption)
+                                        }
+                                        .foregroundStyle(Color.summitText)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                .fill(Color.summitCardElevated)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
-                            .pickerStyle(.menu)
                         }
-                    } header: {
-                        Text("Phase")
-                            .textCase(nil)
-                            .font(.subheadline)
-                            .foregroundStyle(Color.summitTextSecondary)
-                    } footer: {
-                        Text("Workouts must belong to a phase when phases are enabled. You can move them later.")
-                            .font(.caption)
-                            .foregroundStyle(Color.summitTextTertiary)
-                    }
-                    .listRowBackground(Color.summitCard)
-                }
 
-                Section {
-                    HStack {
-                        Text("Position in Plan")
-                            .foregroundStyle(Color.summitTextSecondary)
-
-                        Spacer()
-
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("Day \(workoutCount + 1)")
-                                .foregroundStyle(Color.summitText)
-
-                            if let phaseName = selectedPhase?.name {
-                                Text(phaseName)
-                                    .font(.caption)
-                                    .foregroundStyle(Color.summitTextSecondary)
+                        fieldCard(
+                            title: "Position in Plan",
+                            helper: positionFooterText
+                        ) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Day \(workoutCount + 1)")
+                                        .foregroundStyle(Color.summitText)
+                                    if let phaseName = selectedPhase?.name {
+                                        Text(phaseName)
+                                            .font(.caption)
+                                            .foregroundStyle(Color.summitTextSecondary)
+                                    }
+                                }
+                                Spacer()
                             }
                         }
                     }
-                } footer: {
-                    Text(positionFooterText)
-                        .font(.caption)
-                        .foregroundStyle(Color.summitTextTertiary)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 30)
                 }
-                .listRowBackground(Color.summitCard)
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.summitBackground)
             .navigationTitle("New Workout")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.summitBackground, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -164,6 +157,72 @@ struct CreateWorkoutView: View {
                 }
             }
         }
+    }
+
+    private var formHeader: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Create workout")
+                .font(.custom("Avenir Next", size: 22))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitText)
+        }
+    }
+
+    private func fieldCard<Content: View>(
+        title: String,
+        helper: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.custom("Avenir Next", size: 13))
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.summitTextSecondary)
+
+            content()
+                .font(.custom("Avenir Next", size: 16))
+                .foregroundStyle(Color.summitText)
+                .accentColor(Color.summitOrange)
+                .textFieldStyle(.plain)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.summitCardElevated)
+                )
+
+            Text(helper)
+                .font(.custom("Avenir Next", size: 12))
+                .foregroundStyle(Color.summitTextTertiary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.summitCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.summitOrange.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private var formBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.summitBackground,
+                    Color(hex: "#111114")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.summitOrange.opacity(0.12))
+                .frame(width: 240, height: 240)
+                .blur(radius: 60)
+                .offset(x: 140, y: -140)
+        }
+        .ignoresSafeArea()
     }
 
     private func createWorkout() {
