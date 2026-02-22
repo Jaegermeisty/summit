@@ -17,16 +17,14 @@ struct DataHelpers {
         in context: ModelContext
     ) -> ExerciseLog? {
         let normalizedName = ExerciseDefinition.normalize(exerciseName)
-        let descriptor = FetchDescriptor<ExerciseLog>(
-            predicate: #Predicate<ExerciseLog> { log in
-                log.definition.normalizedName == normalizedName && log.usesBodyweight == true
-            },
-            sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .reverse)]
-        )
-        
+
+        let descriptor = FetchDescriptor<ExerciseLog>()
         do {
             let logs = try context.fetch(descriptor)
-            return logs.first
+            return logs
+                .filter { $0.usesBodyweight && $0.definition.normalizedName == normalizedName }
+                .sorted(by: { ($0.session?.date ?? .distantPast) > ($1.session?.date ?? .distantPast) })
+                .first
         } catch {
             print("Error fetching last session: \(error)")
             return nil
@@ -39,15 +37,13 @@ struct DataHelpers {
         in context: ModelContext
     ) -> [ExerciseLog] {
         let normalizedName = ExerciseDefinition.normalize(exerciseName)
-        let descriptor = FetchDescriptor<ExerciseLog>(
-            predicate: #Predicate<ExerciseLog> { log in
-                log.definition.normalizedName == normalizedName
-            },
-            sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .forward)]
-        )
-        
+
+        let descriptor = FetchDescriptor<ExerciseLog>()
         do {
-            return try context.fetch(descriptor)
+            let logs = try context.fetch(descriptor)
+            return logs
+                .filter { $0.definition.normalizedName == normalizedName }
+                .sorted(by: { ($0.session?.date ?? .distantPast) < ($1.session?.date ?? .distantPast) })
         } catch {
             print("Error fetching exercise history: \(error)")
             return []
@@ -411,15 +407,15 @@ struct DataHelpers {
         in context: ModelContext
     ) -> Double? {
         let normalizedName = definition.normalizedName
-        let descriptor = FetchDescriptor<ExerciseLog>(
-            predicate: #Predicate<ExerciseLog> { log in
-                log.definition.normalizedName == normalizedName
-            },
-            sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .reverse)]
-        )
 
+        let descriptor = FetchDescriptor<ExerciseLog>()
         do {
-            return try context.fetch(descriptor).first?.weight
+            let logs = try context.fetch(descriptor)
+            return logs
+                .filter { $0.definition.normalizedName == normalizedName }
+                .sorted(by: { ($0.session?.date ?? .distantPast) > ($1.session?.date ?? .distantPast) })
+                .first?
+                .weight
         } catch {
             print("Error fetching last logged weight: \(error)")
             return nil
@@ -432,15 +428,14 @@ struct DataHelpers {
         in context: ModelContext
     ) -> Exercise? {
         let normalizedName = definition.normalizedName
-        let descriptor = FetchDescriptor<Exercise>(
-            predicate: #Predicate<Exercise> { exercise in
-                exercise.definition.normalizedName == normalizedName
-            },
-            sortBy: [SortDescriptor(\Exercise.createdAt, order: .reverse)]
-        )
 
+        let descriptor = FetchDescriptor<Exercise>()
         do {
-            return try context.fetch(descriptor).first
+            let exercises = try context.fetch(descriptor)
+            return exercises
+                .filter { $0.definition.normalizedName == normalizedName }
+                .sorted(by: { $0.createdAt > $1.createdAt })
+                .first
         } catch {
             print("Error fetching last exercise template: \(error)")
             return nil
@@ -464,15 +459,15 @@ struct DataHelpers {
         in context: ModelContext
     ) -> Double? {
         let normalizedName = definition.normalizedName
-        let descriptor = FetchDescriptor<ExerciseLog>(
-            predicate: #Predicate<ExerciseLog> { log in
-                log.definition.normalizedName == normalizedName
-            },
-            sortBy: [SortDescriptor(\ExerciseLog.session?.date, order: .reverse)]
-        )
 
+        let descriptor = FetchDescriptor<ExerciseLog>()
         do {
-            return try context.fetch(descriptor).first?.bodyweightKg
+            let logs = try context.fetch(descriptor)
+            return logs
+                .filter { $0.definition.normalizedName == normalizedName }
+                .sorted(by: { ($0.session?.date ?? .distantPast) > ($1.session?.date ?? .distantPast) })
+                .first?
+                .bodyweightKg
         } catch {
             print("Error fetching last logged bodyweight: \(error)")
             return nil

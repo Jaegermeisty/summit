@@ -75,6 +75,7 @@ These are **intended features**, not yet implemented:
   - In-progress session data should persist even if the app is backgrounded or closed
 - Plan comparison view (later release)
 - Long-term migration strategy (SwiftData schema changes)
+- Optional iCloud sync (CloudKit) for multi-device access
 
 ## MVP Roadmap (Checklist)
 
@@ -112,9 +113,10 @@ Monetization
 ## Next Up (Prioritized)
 
 1. App Store assets + release prep (icon, launch screen, screenshots, metadata).
-2. Plan comparison view (later release).
-3. Long-term migration strategy (SwiftData schema changes).
-4. Final UI polish pass after assets are in (small spacing/color tweaks).
+2. Optional iCloud sync (CloudKit) for multi-device access.
+3. Plan comparison view (later release).
+4. Long-term migration strategy (SwiftData schema changes).
+5. Final UI polish pass after assets are in (small spacing/color tweaks).
 
 ## Model Files
 
@@ -156,6 +158,43 @@ BodyWeightLog (independent)
 ## Storage
 
 The app currently uses **local SwiftData persistence** via `ModelContainer.shared` (not in-memory). There is no iCloud sync configured yet.
+
+## iCloud Sync Plan (Future)
+
+### Desired Behavior
+- If iCloud is enabled, data syncs across devices (iPhone + iPad) automatically.
+- If the app is deleted and reinstalled later, data restores from iCloud.
+- If iCloud is disabled or the user is signed out, the app falls back to local-only storage.
+- iCloud can be toggled in iOS Settings; the app should reflect current sync status.
+- In-app Settings should show an **iCloud Sync** row with status (On/Off/Unavailable) and a shortcut to open iOS Settings for the app.
+
+### Implementation Outline
+1. **Enable iCloud + CloudKit capability** in the Xcode target, and set a CloudKit container ID.
+2. **Update SwiftData configuration** in `ModelContainer+Extensions.swift` to use a CloudKit-backed configuration (private database).
+3. **Migration path for existing users**:
+   - On first launch after enabling iCloud, open the local container and read all models.
+   - Write them into the new iCloud-backed container (one-time copy).
+   - Mark migration complete (UserDefaults flag) so it only happens once.
+4. **Fallback when iCloud is unavailable**:
+   - If `FileManager.default.ubiquityIdentityToken` is `nil`, use local configuration.
+   - If iCloud becomes available later, offer a one-time “Enable iCloud Sync” prompt or do a silent migration.
+5. **QA**:
+   - Test with two devices on same Apple ID.
+   - Test uninstall/reinstall restore.
+   - Test with iCloud turned off (local-only, no crashes).
+
+### Conflict / Merge Policy (When iCloud is Enabled Later)
+- **Case A: Local empty, iCloud has data** → auto-download from iCloud.
+- **Case B: Local has data, iCloud empty** → auto-upload local to iCloud.
+- **Case C: Local has data, iCloud has data** → show a one-time choice:
+  - **Merge (recommended)**: union of both datasets by UUID (keep both).
+  - **Replace local with iCloud**: discard local, use iCloud only.
+  - **Keep local only**: do nothing; continue local-only and do not upload (iCloud remains untouched).
+- **Case D: No Apple ID / iCloud off** → keep local only; app is empty on fresh install until iCloud is enabled.
+
+### Notes
+- This is a schema change and needs a stable migration plan to avoid data loss.
+- CloudKit adds sync latency; UI should not assume instant updates.
 
 ## Notes
 
