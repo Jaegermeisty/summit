@@ -246,23 +246,6 @@ struct WorkoutPlanDetailView: View {
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-            } else {
-                infoCard {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Phases")
-                            .font(.custom("Avenir Next", size: 16))
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.summitText)
-
-                        if let active = phases.first(where: { $0.isActive }) {
-                            Text("Active: \(active.name)")
-                                .font(.custom("Avenir Next", size: 13))
-                                .foregroundStyle(Color.summitTextSecondary)
-                        }
-                    }
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             }
         }
     }
@@ -864,8 +847,6 @@ struct PhaseListRowView: View {
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(Color.summitTextTertiary)
             }
         }
         .padding(16)

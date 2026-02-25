@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import Charts
+import StoreKit
 
 private enum AnalyticsMode: String, CaseIterable, Identifiable {
     case exercise = "Exercise"
@@ -91,6 +92,11 @@ struct AnalyticsView: View {
                 VStack(spacing: 20) {
                     analyticsModePicker
 
+                    if !purchaseManager.isPro {
+                        proSummaryCard
+                            .padding(.horizontal, 16)
+                    }
+
                     if mode == .exercise {
                         exerciseSection
                     } else {
@@ -101,6 +107,32 @@ struct AnalyticsView: View {
                 .padding(.bottom, 32)
             }
         }
+    }
+
+    private var proPriceLine: String {
+        let price = purchaseManager.product?.displayPrice ?? "$4.99"
+        return "One-time purchase • \(price)"
+    }
+
+    private var proSummaryCard: some View {
+        HistoryUpsellCard(
+            title: "Unlock Pro",
+            subtitle: "Get full history and analytics across your plans.",
+            features: [
+                "Exercise 1RM trends",
+                "Plan strength & volume",
+                "Full workout history"
+            ],
+            priceText: proPriceLine,
+            billingText: "Pay once, unlock forever",
+            primaryTitle: "Unlock Pro",
+            primaryAction: {
+                Task { await purchaseManager.purchase() }
+            },
+            restoreAction: {
+                Task { await purchaseManager.restorePurchases() }
+            }
+        )
     }
 
     private var exerciseSection: some View {
@@ -164,11 +196,7 @@ struct AnalyticsView: View {
 
             if !purchaseManager.isPro {
                 infoCard {
-                    lockedAnalyticsCard(
-                        title: "Unlock Pro",
-                        message: "See exercise 1RM trends and progress over time.",
-                        actionTitle: "Unlock Pro"
-                    )
+                    lockedChartPlaceholder(message: "Unlock Pro to view exercise analytics.")
                 }
                 .padding(.horizontal, 16)
             } else if exerciseSeries.isEmpty {
@@ -332,11 +360,7 @@ struct AnalyticsView: View {
                     .padding(.horizontal, 16)
 
                     infoCard {
-                        lockedAnalyticsCard(
-                            title: "Unlock Pro",
-                            message: "See plan strength score over each full cycle.",
-                            actionTitle: "Unlock Pro"
-                        )
+                        lockedChartPlaceholder(message: "Unlock Pro to view plan strength score.")
                     }
                     .padding(.horizontal, 16)
 
@@ -355,11 +379,7 @@ struct AnalyticsView: View {
                     .padding(.horizontal, 16)
 
                     infoCard {
-                        lockedAnalyticsCard(
-                            title: "Unlock Pro",
-                            message: "Track plan volume trends across cycles.",
-                            actionTitle: "Unlock Pro"
-                        )
+                        lockedChartPlaceholder(message: "Unlock Pro to view plan volume.")
                     }
                     .padding(.horizontal, 16)
                 }
@@ -861,6 +881,20 @@ struct AnalyticsView: View {
             .foregroundStyle(Color.summitTextTertiary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func lockedChartPlaceholder(message: String) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.summitTextTertiary)
+            Text(message)
+                .font(.custom("Avenir Next", size: 13))
+                .foregroundStyle(Color.summitTextSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 18)
     }
 
     private func reloadExerciseSeries() {

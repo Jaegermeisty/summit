@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import StoreKit
 
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
@@ -39,6 +40,7 @@ struct HistoryView: View {
                                         .foregroundStyle(Color.summitTextSecondary)
                                 }
                                 .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                             } else {
                                 ForEach(sessions.prefix(displayLimit)) { session in
                                     NavigationLink {
@@ -107,6 +109,7 @@ struct HistoryView: View {
                                         .foregroundStyle(Color.summitTextSecondary)
                                 }
                                 .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                             }
                         } header: {
                             Text("Last Session")
@@ -115,20 +118,22 @@ struct HistoryView: View {
                                 .foregroundStyle(Color.summitTextSecondary)
                         }
 
-                        Section {
-                            HistoryUpsellCard(
-                                title: "Unlock History",
-                                subtitle: "See every session and unlock analytics.",
-                                features: [
-                                    "Full workout history",
-                                    "Session details",
-                                    "Plan and exercise analytics"
-                                ],
-                                primaryTitle: "Unlock Pro",
-                                primaryAction: {
-                                    Task { await purchaseManager.purchase() }
-                                },
-                                restoreAction: {
+        Section {
+            HistoryUpsellCard(
+                title: "Unlock History",
+                subtitle: "See every session and unlock analytics.",
+                features: [
+                    "Full workout history",
+                    "Session details",
+                    "Plan and exercise analytics"
+                ],
+                priceText: proPriceLine,
+                billingText: "Pay once, unlock forever",
+                primaryTitle: "Unlock Pro",
+                primaryAction: {
+                    Task { await purchaseManager.purchase() }
+                },
+                restoreAction: {
                                     Task { await purchaseManager.restorePurchases() }
                                 }
                             )
@@ -159,6 +164,11 @@ struct HistoryView: View {
             dismissKeyboard()
             displayLimit = 5
         }
+    }
+
+    private var proPriceLine: String {
+        let price = purchaseManager.product?.displayPrice ?? "$4.99"
+        return "One-time purchase • \(price)"
     }
 
     private var historyBackground: some View {
@@ -195,6 +205,8 @@ struct HistoryUpsellCard: View {
     let title: String
     let subtitle: String
     let features: [String]
+    let priceText: String?
+    let billingText: String?
     let primaryTitle: String
     let primaryAction: () -> Void
     let restoreAction: () -> Void
@@ -239,6 +251,19 @@ struct HistoryUpsellCard: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color.summitCardElevated)
             )
+
+            if let priceText {
+                VStack(spacing: 4) {
+                    Text(priceText)
+                        .font(.custom("Avenir Next", size: 13))
+                        .foregroundStyle(Color.summitTextSecondary)
+                    if let billingText {
+                        Text(billingText)
+                            .font(.custom("Avenir Next", size: 12))
+                            .foregroundStyle(Color.summitTextTertiary)
+                    }
+                }
+            }
 
             Button {
                 primaryAction()

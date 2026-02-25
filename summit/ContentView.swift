@@ -566,29 +566,16 @@ struct ActivePlanCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
-                        HStack(spacing: 6) {
-                            Text(plan.name)
-                                .font(.custom("Avenir Next", size: 24))
-                                .fontWeight(.bold)
-                                .foregroundStyle(Color.summitText)
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(Color.summitTextSecondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Spacer()
-
-                if let phaseName = activePhaseName {
-                    infoChip(text: phaseName, icon: "flag.checkered")
-                }
+            NavigationLink(destination: WorkoutPlanDetailView(plan: plan)) {
+                Text(plan.name)
+                    .font(.custom("Avenir Next", size: 24))
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.summitText)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .buttonStyle(.plain)
 
             if let description = plan.planDescription {
                 Text(description)

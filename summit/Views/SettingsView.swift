@@ -18,7 +18,7 @@ struct SettingsView: View {
 
     private let privacyPolicyURL = URL(string: "https://jpventures.dev/summit/privacy/")!
     private let supportURL = URL(string: "mailto:mathias.jpventures@gmail.com")!
-    private let iconCreditsURL = URL(string: "https://www.flaticon.com/free-icons/warm-up")!
+    private let iconCreditsURL = URL(string: "https://www.flaticon.com/authors/fathema-khanom")!
 
     var body: some View {
         ZStack {

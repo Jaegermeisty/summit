@@ -287,12 +287,6 @@ struct PhaseDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(Color.summitTextSecondary)
                 .listRowSeparator(.hidden)
-        } footer: {
-            if !workouts.isEmpty {
-                Text("Swipe left on a workout to delete it")
-                    .font(.caption)
-                    .foregroundStyle(Color.summitTextTertiary)
-            }
         }
     }
 
